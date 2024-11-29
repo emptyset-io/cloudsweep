@@ -1,0 +1,11 @@
+boto3
+botocore
+jinja2
+numpy
+pandas
+pdfkit
+python-dotenv
+pytest
+moto
+mock
+ipython
