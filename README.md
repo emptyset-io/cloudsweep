@@ -68,12 +68,37 @@ Cloud Sweep scans AWS resources across multiple profiles and regions. Use the co
 - `--all-regions`: Scan all AWS regions.
 - `--max-workers`: Number of concurrent threads to use for scanning. Defaults to one less than the number of CPUs.
 
-### Environment Variables
+## Environment Variables
 
-Set the following environment variables to override the command-line arguments:
+The AWS Scanner CLI can be configured using environment variables. This allows you to set default values for the command-line arguments, making it easier to run the tool without having to specify all the arguments each time.
 
-- **`AWS_SCANNER_ORGANIZATION_ROLE`**: Overrides `--organization-role`.
-- **`AWS_SCANNER_RUNNER_ROLE`**: Overrides `--runner-role`.
+### Supported Environment Variables
+
+Below are the environment variables you can use to configure the AWS Scanner CLI:
+
+| **Environment Variable**       | **Description**                                                       | **Default Value**       |
+|---------------------------------|-----------------------------------------------------------------------|-------------------------|
+| `CS_AWS_PROFILE`               | The AWS profile to use for authentication.                           | (No default, must be set if required) |
+| `CS_ORGANIZATION_ROLE`         | The IAM Role Name used to query the organization.                    | (No default, must be set) |
+| `CS_RUNNER_ROLE`               | The IAM Role Name for scanning organization accounts.                | (No default, must be set) |
+| `CS_SCANNERS`                  | A comma-separated list of scanners to use (e.g., `scanner1,scanner2`). If set to `"all"`, all available scanners are used. | `all`                   |
+| `CS_REGIONS`                   | A comma-separated list of AWS regions to scan (e.g., `us-east-1,us-west-2`). If set to `"all"`, all regions are used. | `all`                   |
+| `CS_MAX_WORKERS`               | The maximum number of workers to use for scanning (default: one less than the number of CPUs). | (System default, typically `os.cpu_count() - 1`) |
+| `CS_DAYS_THRESHOLD`            | The number of days to look back at resource metrics and history to determine if something is unused. This is used to identify unused resources. | `90`                    |
+
+### Example `.env` File
+
+To simplify configuration, you can create a `.env` file in your project directory. Below is an example `.env` file that sets the necessary environment variables:
+
+```
+CS_AWS_PROFILE=default
+CS_ORGANIZATION_ROLE=my-organization-role
+CS_RUNNER_ROLE=my-runner-role
+CS_SCANNERS=  # If left empty, defaults to 'all' (i.e., use all scanners)
+CS_REGIONS=  # If left empty, defaults to 'all' (i.e., use all regions)
+CS_MAX_WORKERS=4
+CS_DAYS_THRESHOLD=90  # Default value is 90 days
+```
 
 ### Example Commands
 
