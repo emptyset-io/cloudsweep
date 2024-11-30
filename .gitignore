@@ -1,0 +1,6 @@
+.venv
+htmlcov
+.env
+scan_report.*
+*.pyc
+prompts.txt
