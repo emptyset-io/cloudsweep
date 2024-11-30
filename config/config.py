@@ -1,0 +1,2 @@
+import os
+DAYS_THRESHOLD=os.getenv("CS_DAYS_THRESHOLD", 90)

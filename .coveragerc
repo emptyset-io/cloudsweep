@@ -1,0 +1,17 @@
+[run]
+source = .
+omit = 
+    */tests/*
+    */__init__.py
+    setup.py
+    utils/generate_dummy_report.py
+    */venv/*
+    */.venv/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
