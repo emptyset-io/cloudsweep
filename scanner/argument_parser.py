@@ -1,7 +1,7 @@
 import argparse
-from utils.logger import get_logger
 import os
 import sys
+from utils.logger import get_logger
 from scanner.resource_scanner_registry import ResourceScannerRegistry
 
 logger = get_logger(__name__)
@@ -14,20 +14,23 @@ class ArgumentParser:
     @staticmethod
     def parse_arguments():
         """
-        Parse command-line arguments.
+        Parse command-line arguments, with support for environment variables.
         """
         parser = argparse.ArgumentParser(description="AWS Scanner CLI")
-        parser.add_argument("--organization-role", help="IAM Role Name for querying the organization.")
-        parser.add_argument("--runner-role", help="IAM Role Name for scanning organization accounts.")
-        parser.add_argument("--profile", help="AWS profile to use.")
+        
+        # Command-line arguments
+        parser.add_argument("--organization-role", default=os.getenv("CS_ORGANIZATION_ROLE"), help="IAM Role Name for querying the organization.")
+        parser.add_argument("--runner-role", default=os.getenv("CS_RUNNER_ROLE"), help="IAM Role Name for scanning organization accounts.")
+        parser.add_argument("--profile", default=os.getenv("CS_AWS_PROFILE"), help="AWS profile to use.")
         parser.add_argument("--list-scanners", action="store_true", help="List all available scanners.")
         parser.add_argument("--all-scanners", action="store_true", help="Use all scanners.")
-        parser.add_argument("--scanners", help="Comma-separated list of scanners.")
-        parser.add_argument("--regions", help="Comma-separated list of regions.")
-        parser.add_argument("--all-regions", action="store_true", help="Scan all regions.")
-        parser.add_argument("--max-workers", type=int, default=(os.cpu_count() - 1),
-                            help="Maximum number of workers to use (default: one less than the number of CPUs).")
+        parser.add_argument("--scanners", default=os.getenv("CS_SCANNERS", "all"), help="Comma-separated list of scanners or 'all' to use all scanners.")
+        parser.add_argument("--regions", default=os.getenv("CS_REGIONS", "all"), help="Comma-separated list of regions or 'all' to use all regions.")
+        parser.add_argument("--max-workers", type=int, default=int(os.getenv("CS_MAX_WORKERS", os.cpu_count() - 1)), help="Maximum number of workers to use (default: one less than the number of CPUs).")
         
+        # New argument for days-threshold
+        parser.add_argument("--days-threshold", type=int, default=int(os.getenv("CS_DAYS_THRESHOLD", 90)), help="The number of days to look back at resource metrics and history to determine if something is unused (default: 90 days).")
+
         args = parser.parse_args()
 
         # If no critical arguments are passed, handle it gracefully
@@ -50,7 +53,8 @@ class ArgumentParser:
                 print(scanner_name)
             sys.exit(0)  # Exit point for list mode
         
-        if args.all_scanners:
+        # Handle 'all' value for scanners
+        if args.scanners == "all" or args.all_scanners:
             scanners = all_scanners  # Use all available scanners
             logger.info("Using all scanners.")
         elif args.scanners:
@@ -74,7 +78,7 @@ class ArgumentParser:
                 logger.error("No valid scanners were provided.")
                 sys.exit(1)
         else:
-            # Default to all scanners
+            # Default to all scanners if no specific scanners are provided
             scanners = all_scanners
         
         return scanners
@@ -84,7 +88,7 @@ class ArgumentParser:
         """
         Determine which regions to use based on arguments.
         """
-        if args.all_regions:
+        if args.regions == "all":
             logger.info("Using all regions for the scan.")
             return "all"  # Process all regions
         elif args.regions:
@@ -92,7 +96,7 @@ class ArgumentParser:
             logger.info(f"Using specified regions: {regions}")
             return regions
         else:
-            logger.info("No specific regions or 'all-regions' flag provided. Defaulting to all regions.")
+            logger.info("No specific regions provided. Defaulting to all regions.")
             return "all"
 
     @staticmethod
@@ -103,3 +107,12 @@ class ArgumentParser:
         max_workers = args.max_workers
         logger.info(f"Using {max_workers} worker(s).")
         return max_workers
+
+    @staticmethod
+    def get_days_threshold(args):
+        """
+        Get the days threshold from the arguments or environment variable.
+        """
+        days_threshold = args.days_threshold
+        logger.info(f"Using {days_threshold} days as the threshold to identify unused resources.")
+        return days_threshold
