@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Report</title>
+    <style>{{ styles | safe }}</style>
+    <script>{{ scripts | safe }}</script>
+</head>
+<body>
+    <h1>Scan Report</h1>
+    <div class="summary-container">
+        <!-- Scanned Accounts and Regions -->
+        <div class="summary-block">
+            <h3>Scanned Accounts and Regions</h3>
+            <table class="accounts-table">
+                <thead>
+                    <tr>
+                        <th>Account ID</th>
+                        <th>Regions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account, regions in accounts_and_regions.items() |sort(attribute=0) %}
+                        <tr>
+                            <td class="account-id">{{ account }}</td>
+                            <td class="region-list">{{ regions | sort | join(', ') }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Resource Type Counts -->
+        <div class="summary-block">
+            <h3>Resource Type Counts</h3>
+            <table id="resource-type-counts">
+                <thead>
+                    <tr>
+                        <th>Resource Type</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for resource_type, count in resource_type_counts.items() |sort(attribute=0) %}
+                    <tr>
+                        <td>{{ resource_type }}</td>
+                        <td>{{ count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <br />
+            <br />
+            <br />
+            <h3>Scan Metrics</h3>
+            <table id="scan-metrics">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Total Number of Scans</td>
+                        <td>{{ scan_metrics.total_scans }}</td>
+                    </tr>
+                    <tr>
+                        <td>Average Scans per Second</td>
+                        <td>{{ scan_metrics.avg_scans_per_second }}</td>
+                    </tr>
+                    <tr>
+                        <td>Overall Scan Time</td>
+                        <td>{{ scan_metrics.total_run_time }} seconds</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>     
+
+        <!-- Unused Resources -->
+        <div class="summary-block">
+            <h3>Unused Resources</h3>
+            <div class="input-container">
+                <div style="position: relative; width: 100%;">
+                    <input type="text" id="search-input" placeholder="Search table..." onkeyup="filterTable()" />
+                    <button id="clear-search" onclick="clearSearch()">Clear</button>
+                </div>
+                <button class="export-btn" onclick="exportTableToCSV('scan_report.csv')">Export to CSV</button>
+            </div>
+            <table id="scan-table">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(0)">Account ID <span class="sort-icon">↕</span></th>
+                        <th onclick="sortTable(1)">Region <span class="sort-icon">↕</span></th>
+                        <th onclick="sortTable(2)">Resource Type <span class="sort-icon">↕</span></th>
+                        <th onclick="sortTable(3)">Name <span class="sort-icon">↕</span></th>
+                        <th onclick="sortTable(4)">Resource ID <span class="sort-icon">↕</span></th>
+                        <th onclick="sortTable(5)">Reason <span class="sort-icon">↕</span></th>
+                        <th onclick="sortTable(6)">Details <span class="sort-icon">↕</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for resource in resources |sort(attribute='account_id') %}
+                    <tr>
+                        <td>{{ resource.account_id }}</td>
+                        <td>{{ resource.region }}</td>
+                        <td>{{ resource.resource_type }}</td>
+                        <td>{{ resource.name }}</td>
+                        <td>{{ resource.resource_id }}</td>
+                        <td>{{ resource.reason }}</td>
+                        <td>
+                        <!-- Toggle Button -->
+                        <button class="toggle-button" onclick="toggleDetails(this, 'details_{{ resource.resource_id }}')">
+                            <span class="text">Show more</span>
+                            <span class="icon">▼</span>
+                        </button>
+
+                        <!-- Details Content -->
+                        <div id="details_{{ resource.resource_id }}" data-collapsed="true" data-short-text="{{ resource.details[:50] }}..." data-full-text="{{ resource.details }}">
+                            {{ resource.details[:50] }}...
+                        </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
