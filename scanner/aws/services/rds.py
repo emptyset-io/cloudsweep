@@ -43,7 +43,7 @@ class RDSScanner(ResourceScannerRegistry):
                 creation_time = instance["InstanceCreateTime"]
                 start_time = determine_metric_time_window(creation_time, current_time, DAYS_THRESHOLD)
 
-                # Fetch CloudWatch metrics
+                # Fetch CloudWatch metrics (note: the new fetch_metric returns a list of values)
                 metrics = {
                     "cpu_usage": fetch_metric(cloudwatch_client, "AWS/RDS", instance_id, "DBInstanceIdentifier", "CPUUtilization", "Average", start_time, current_time),
                     "connections": fetch_metric(cloudwatch_client, "AWS/RDS", instance_id, "DBInstanceIdentifier", "DatabaseConnections", "Maximum", start_time, current_time),
@@ -51,11 +51,17 @@ class RDSScanner(ResourceScannerRegistry):
                     "write_iops": fetch_metric(cloudwatch_client, "AWS/RDS", instance_id, "DBInstanceIdentifier", "WriteIOPS", "Sum", start_time, current_time)
                 }
 
-                # Define unused conditions
+                # Sum the metric values to get totals for CPU, connections, and I/O
+                cpu_usage_total = sum(metrics["cpu_usage"])  # Sum the CPU usage
+                connections_total = sum(metrics["connections"])  # Sum the connections
+                read_iops_total = sum(metrics["read_iops"])  # Sum the read IOPS
+                write_iops_total = sum(metrics["write_iops"])  # Sum the write IOPS
+
+                # Define unused conditions based on the summed metrics
                 unused_conditions = [
-                    (lambda m: (m["connections"] == 0, "No active connections.")),
-                    (lambda m: (m["cpu_usage"] < 1, f"Low CPU utilization ({m['cpu_usage']}%).")),
-                    (lambda m: (m["read_iops"] + m["write_iops"] == 0, "No read/write I/O activity."))
+                    (lambda m: (connections_total == 0, "No active connections.")),
+                    (lambda m: (cpu_usage_total < 1, f"Low CPU utilization ({cpu_usage_total}%)")),
+                    (lambda m: (read_iops_total + write_iops_total == 0, "No read/write I/O activity."))
                 ]
 
                 reason = determine_unused_reason(metrics, unused_conditions)
@@ -66,10 +72,10 @@ class RDSScanner(ResourceScannerRegistry):
                         "DBInstanceClass": instance["DBInstanceClass"],
                         "Engine": instance["Engine"],
                         "InstanceCreateTime": creation_time,
-                        "Connections": metrics["connections"],
-                        "CPUUsage": metrics["cpu_usage"],
-                        "ReadIOPS": metrics["read_iops"],
-                        "WriteIOPS": metrics["write_iops"],
+                        "Connections": connections_total,
+                        "CPUUsage": cpu_usage_total,
+                        "ReadIOPS": read_iops_total,
+                        "WriteIOPS": write_iops_total,
                         "AccountId": session.account_id,
                         "Reason": reason
                     })

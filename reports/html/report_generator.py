@@ -7,8 +7,6 @@ from utils.logger import get_logger
 from scanner.resource_scanner_registry import ResourceScannerRegistry
 
 logger = get_logger(__name__)
-        
-
 
 class HTMLReportGenerator:
     """
@@ -34,7 +32,7 @@ class HTMLReportGenerator:
             raise FileNotFoundError(f"Template directory not found: {self.template_dir}")
         if not os.path.exists(self.asset_dir):
             raise FileNotFoundError(f"Asset directory not found: {self.asset_dir}")
-    
+
     def _load_asset(self, asset_path):
         """
         Utility function to load file content from the given path.
@@ -49,7 +47,7 @@ class HTMLReportGenerator:
         except FileNotFoundError:
             logger.error(f"Asset not found: {asset_path}")
             return ""
-    
+
     def _calculate_duration(self, total_scan_time):
         """
         Calculate the duration from the total scan time (in seconds) and return it
@@ -78,7 +76,6 @@ class HTMLReportGenerator:
         logger.debug(f"Calculated duration: {duration_str}")
         return duration, duration_str
 
-    
     def _format_report_time(self, start_time):
         """
         Format the report generation start time in UTC.
@@ -90,18 +87,39 @@ class HTMLReportGenerator:
         formatted_time = utc_time.strftime("%Y-%m-%d %H:%M:%S")
         logger.debug(f"Formatted report start time: {formatted_time}")
         return formatted_time
-    
+
+    def _parse_currency(self, currency_str):
+        """
+        Parse a currency string like '$1,234.56' to a float (e.g., 1234.56).
+        
+        :param currency_str: The currency string to be parsed (e.g., '$1,234.56').
+        :return: The numerical value as a float.
+        """
+        if currency_str:
+            # Remove dollar sign and commas, then convert to float
+            return float(currency_str.replace('$', '').replace(',', ''))
+        return 0.0
+
     def _extract_scan_data(self, scan_results):
         """
-        Extract relevant data from scan results to be used in the report.
+        Extract relevant data from scan results to be used in the report,
+        including calculating the combined lifetime cost for EC2 and EBS resources,
+        but only for EC2 Instances.
 
         :param scan_results: The scan results list containing resources and metadata.
-        :return: A tuple containing accounts and regions, resource counts, and resource details.
+        :return: A tuple containing accounts and regions, resource counts, resource details, and combined lifetime cost for EC2 and EBS.
         """
         logger.debug("Extracting scan data")
         accounts_and_regions = {}
         resource_type_counts = {}
         resources = []
+        combined_costs = {
+            'hourly': 0,
+            'daily': 0,
+            'monthly': 0,
+            'yearly': 0,
+            'lifetime': 0
+        }
 
         # Iterate through the scan results list
         for account_data in scan_results:
@@ -144,12 +162,30 @@ class HTMLReportGenerator:
                                 "reason": resource.get("Reason", "N/A"),
                                 "details": self._format_resource_details(resource).replace("\n", "<br>")
                             })
+
+                            # If the resource is EC2 Instances, check for EBS cost and EC2 cost
+                            if label == "EC2 Instances":
+                                cost_data = resource.get("Cost", {})
+
+                                # Handle EC2 cost
+                                ec2_cost = cost_data.get('EC2Cost', {})
+                                for cost_type in combined_costs:
+                                    if cost_type in ec2_cost:
+                                        ec2_value = self._parse_currency(ec2_cost[cost_type])
+                                        combined_costs[cost_type] += ec2_value
+                                
+                                # Handle EBS volumes cost
+                                ebs_cost = cost_data.get('EBSVolumesCost', [])
+                                for ebs_item in ebs_cost:
+                                    for cost_type in combined_costs:
+                                        if cost_type in ebs_item:
+                                            ebs_value = self._parse_currency(ebs_item[cost_type])
+                                            combined_costs[cost_type] += ebs_value
                     except ValueError:
                         logger.error(f"Scanner not found for resource type: {resource_type}")
 
-        return accounts_and_regions, resource_type_counts, resources
+        return accounts_and_regions, resource_type_counts, resources, combined_costs
 
-    
     def _render_html_template(self, template_path, context):
         """
         Render the Jinja2 template with the provided context.
@@ -162,7 +198,7 @@ class HTMLReportGenerator:
         env = Environment(loader=FileSystemLoader(searchpath=self.template_dir))
         template = env.get_template(template_path)
         return template.render(context)
-    
+
     def _save_html_to_file(self, content, filename):
         """
         Save the generated HTML content to a file.
@@ -173,7 +209,7 @@ class HTMLReportGenerator:
         logger.debug(f"Saving HTML content to file: {filename}")
         with open(filename, 'w') as file:
             file.write(content)
-    
+
     def generate_html(self, scan_results, start_time, scan_metrics, filename="scan_report.html"):
         """
         Generate an HTML report from scan results using Jinja2 templates.
@@ -186,8 +222,8 @@ class HTMLReportGenerator:
         """
         logger.info("Generating HTML report")
         
-        # Extract scan data
-        accounts_and_regions, resource_type_counts, resources = self._extract_scan_data(scan_results)
+        # Extract scan data and combined lifetime cost
+        accounts_and_regions, resource_type_counts, resources, combined_costs = self._extract_scan_data(scan_results)
 
         # Use the total_run_time from scan_metrics to calculate the duration
         total_scan_time = scan_metrics.get("total_run_time", 0)  # Ensure total_run_time is available in scan_metrics
@@ -204,7 +240,7 @@ class HTMLReportGenerator:
         scripts = self._load_asset(os.path.join(self.asset_dir, 'scripts.js'))
 
         logger.debug(f"ScanTimings: {','.join(str(value) for value in scan_metrics)}")
-        
+        logger.critical(f"{combined_costs}")
         # Prepare context for template rendering
         context = {
             "accounts_and_regions": accounts_and_regions,
@@ -214,7 +250,8 @@ class HTMLReportGenerator:
             "start_time": start_time,
             "styles": styles,
             "scripts": scripts,
-            "scan_metrics": scan_metrics,  # Now includes the updated total_run_time
+            "scan_metrics": scan_metrics,
+            "combined_costs": combined_costs,
         }
 
         # Render the HTML report
@@ -263,3 +300,12 @@ class HTMLReportGenerator:
             return format_list(resource, indent_level=0)
         else:
             return str(resource)
+        
+    def _format_currency(self, amount):
+        """
+        Format the amount as a currency string.
+
+        :param amount: The amount to format.
+        :return: The formatted currency string.
+        """
+        return f"${amount:,.2f}"        

@@ -70,6 +70,8 @@ class CloudFormationScanner(ResourceScannerRegistry):
 
     def check_instance_usage(self, cloudwatch_client, instance_id, start_time, end_time):
         """Check the EC2 instance's usage metrics."""
+        
+        # Fetch metrics using the new fetch_metric function (returns a list of values)
         metrics = {
             "cpu": fetch_metric(
                 cloudwatch_client, "AWS/EC2", instance_id, "InstanceId", "CPUUtilization", "Average", start_time, end_time
@@ -78,11 +80,18 @@ class CloudFormationScanner(ResourceScannerRegistry):
                 cloudwatch_client, "AWS/EC2", instance_id, "InstanceId", "NetworkPacketsIn", "Sum", start_time, end_time
             ),
         }
+        
+        # Sum the values from the lists returned by fetch_metric
+        cpu_usage_total = sum(metrics["cpu"])  # Sum the CPU utilization values
+        network_usage_total = sum(metrics["network"])  # Sum the network packets in values
+
         unused_conditions = [
-            (lambda m: (m["cpu"] == 0, "No CPU usage detected.")),
-            (lambda m: (m["network"] == 0, "No network activity detected.")),
+            (lambda m: (cpu_usage_total == 0, "No CPU usage detected.")),
+            (lambda m: (network_usage_total == 0, "No network activity detected.")),
         ]
+        
         reason = determine_unused_reason(metrics, unused_conditions)
         if reason:
             metrics["reason"] = reason
+        
         return metrics

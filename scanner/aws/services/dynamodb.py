@@ -43,7 +43,8 @@ class DynamoDBScanner(ResourceScannerRegistry):
 
                 if reason:
                     unused_tables.append({
-                        "TableName": table_name,
+                        "ResourceName": table_name,
+                        "ResourceId": table_name,
                         "CreationDateTime": creation_time,
                         "ItemCount": table_info.get("ItemCount", 0),
                         "TableSizeBytes": table_info.get("TableSizeBytes", 0),
@@ -60,6 +61,8 @@ class DynamoDBScanner(ResourceScannerRegistry):
 
     def check_dynamodb_usage(self, cloudwatch_client, table_name, start_time, end_time):
         """Check the DynamoDB table's read/write capacity and throttled events metrics."""
+        
+        # Fetch metrics using the updated fetch_metric function
         metrics = {
             "read_capacity": fetch_metric(
                 cloudwatch_client, "AWS/DynamoDB", table_name, "TableName", "ConsumedReadCapacityUnits", "Sum", start_time, end_time
@@ -71,11 +74,20 @@ class DynamoDBScanner(ResourceScannerRegistry):
                 cloudwatch_client, "AWS/DynamoDB", table_name, "TableName", "ProvisionedThroughputExceededEvents", "Sum", start_time, end_time
             ),
         }
+
+        # Process metrics
+        read_capacity_total = sum(metrics["read_capacity"])  # Summing the values from the list
+        write_capacity_total = sum(metrics["write_capacity"])  # Summing the values from the list
+        throttled_events_total = sum(metrics["throttled_events"])  # Summing the values from the list
+
         unused_conditions = [
-            (lambda m: (m["read_capacity"] == 0 and m["write_capacity"] == 0, "No read or write activity.")),
-            (lambda m: (m["throttled_events"] > 0, f"Provisioned throughput exceeded events: {m['throttled_events']}.")),
+            (lambda m: (read_capacity_total == 0 and write_capacity_total == 0, "No read or write activity.")),
+            (lambda m: (throttled_events_total > 0, f"Provisioned throughput exceeded events: {throttled_events_total}.")),
         ]
+
         reason = determine_unused_reason(metrics, unused_conditions)
         if reason:
             metrics["reason"] = reason
+        
+        # Return metrics including the reason
         return metrics

@@ -14,7 +14,7 @@ def determine_metric_time_window(resource_creation_time, current_time, days_thre
 
 def fetch_metric(cloudwatch_client, namespace, resource_name, dimension_name, metric_name, stat, start_time, end_time):
     """
-    Fetch CloudWatch metrics for a given resource.
+    Fetch CloudWatch metrics for a given resource and return a list of values instead of a single sum.
 
     :param cloudwatch_client: Boto3 CloudWatch client.
     :param namespace: AWS CloudWatch namespace (e.g., AWS/EC2, AWS/DynamoDB).
@@ -24,7 +24,7 @@ def fetch_metric(cloudwatch_client, namespace, resource_name, dimension_name, me
     :param stat: The statistic type (e.g., Sum, Average).
     :param start_time: The start time for the metric query.
     :param end_time: The end time for the metric query.
-    :return: The sum of metric values or 0 if no data is available.
+    :return: A list of metric values or an empty list if no data is available.
     """
     try:
         metric_data = cloudwatch_client.get_metric_data(
@@ -36,7 +36,7 @@ def fetch_metric(cloudwatch_client, namespace, resource_name, dimension_name, me
                         'MetricName': metric_name,
                         'Dimensions': [{'Name': dimension_name, 'Value': resource_name}],
                     },
-                    'Period': 3600,
+                    'Period': 3600,  # 1-hour granularity, adjust as needed
                     'Stat': stat,
                 },
                 'ReturnData': True,
@@ -44,12 +44,13 @@ def fetch_metric(cloudwatch_client, namespace, resource_name, dimension_name, me
             StartTime=start_time,
             EndTime=end_time,
         )['MetricDataResults'][0]['Values']
-        return sum(metric_data) if metric_data else 0
+        
+        return metric_data  # Return the list of values (empty if no data available)
+    
     except Exception as e:
         # Log error in your logger system
         print(f"Error fetching metric {metric_name} for {resource_name}: {e}")
-        return 0
-
+        return []  # Return an empty list if there was an error
 
 def determine_unused_reason(metric_values, unused_conditions):
     """

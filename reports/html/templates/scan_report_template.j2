@@ -51,6 +51,41 @@
                 </tbody>
             </table>
             <br />
+            
+            <div class="summary-block">
+                <h3>Combined Cost Breakdown Ec2 Instances.</h3>
+                <table id="combined-costs">
+                    <thead>
+                        <tr>
+                            <th>Cost Type</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Hourly</td>
+                            <td>${{ "{:,.2f}".format(combined_costs.hourly) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Daily</td>
+                            <td>${{ "{:,.2f}".format(combined_costs.daily) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Monthly</td>
+                            <td>${{ "{:,.2f}".format(combined_costs.monthly) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Yearly</td>
+                            <td>${{ "{:,.2f}".format(combined_costs.yearly) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Lifetime</td>
+                            <td>${{ "{:,.2f}".format(combined_costs.lifetime) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
             <br />
             <br />
             <h3>Scan Metrics</h3>
