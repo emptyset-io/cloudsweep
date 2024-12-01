@@ -3,6 +3,7 @@ from utils.logger import get_logger
 from config.config import DAYS_THRESHOLD
 from scanner.resource_scanner_registry import ResourceScannerRegistry
 from scanner.aws.utils.scanner_helper import extract_tag_value
+from scanner.aws.cost_estimator import CostEstimator
 
 logger = get_logger(__name__)
 
@@ -27,27 +28,38 @@ class EbsSnapshotScanner(ResourceScannerRegistry):
 
             for snapshot in snapshots:
                 snapshot_id = snapshot["SnapshotId"]
-                logger.debug(f"Checking EBS snapshot {snapshot_id}...")
+                logger.debug(f"Checking EBS snapshot {snapshot_id} for usage...")
 
-                # Extract snapshot name from tags
-                snapshot_name = extract_tag_value(snapshot.get("Tags", []), "Name")
+                # Retrieve snapshot description or tags for a name
+                snapshot_name = extract_tag_value(snapshot.get("Tags"), key="Name")
+                snapshot_description = snapshot.get("Description", "N/A")
+                create_time = snapshot["StartTime"]
+                size_in_gb = snapshot["VolumeSize"]
 
-                # Determine snapshot age and unused status
-                start_time = snapshot["StartTime"]
-                if (current_time - start_time).days >= DAYS_THRESHOLD:
+                # Calculate snapshot age
+                days_since_creation = (current_time - create_time).days
+                age_in_hours = int((current_time - create_time).total_seconds() / 3600)
+
+                # Estimate snapshot cost
+                cost_details = CostEstimator().calculate_cost(
+                    resource_type="EBS-Snapshots",
+                    resource_size=size_in_gb,
+                    hours_running=age_in_hours,
+                )
+
+                # Mark snapshot as unused if older than threshold
+                if days_since_creation >= DAYS_THRESHOLD:
                     unused_snapshots.append({
-                        "ResourceName": snapshot_name,
+                        "ResourceName": snapshot_name or snapshot_description,
                         "ResourceId": snapshot_id,
-                        "State": snapshot["State"],
-                        "VolumeId": snapshot.get("VolumeId", "N/A"),
-                        "VolumeSize": snapshot.get("VolumeSize", 0),  # Size in GiB
-                        "StartTime": start_time,
+                        "Size": size_in_gb,
+                        "CreateTime": create_time,
                         "AccountId": session.account_id,
-                        "Reason": f"Snapshot has not been accessed for "
-                                  f"{(current_time - start_time).days} days, "
-                                  f"exceeding the threshold of {DAYS_THRESHOLD} days"
+                        "Reason": f"Snapshot is {days_since_creation} days old, exceeding the threshold of {DAYS_THRESHOLD} days",
+                        "Cost": {self.label: cost_details}
                     })
-                    logger.info(f"EBS snapshot {snapshot_id} ({snapshot_name}) is unused.")
+                    logger.debug(f"EBS snapshot[{snapshot_id}] cost: {cost_details}")
+                    logger.info(f"EBS snapshot {snapshot_id} ({snapshot_name or snapshot_description}) is unused.")
 
             logger.info(f"Found {len(unused_snapshots)} unused EBS snapshots.")
             return unused_snapshots

@@ -3,6 +3,7 @@ from utils.logger import get_logger
 from config.config import DAYS_THRESHOLD
 from scanner.resource_scanner_registry import ResourceScannerRegistry
 from scanner.aws.utils.scanner_helper import extract_tag_value
+from scanner.aws.cost_estimator import CostEstimator
 
 logger = get_logger(__name__)
 
@@ -36,6 +37,13 @@ class EbsVolumeScanner(ResourceScannerRegistry):
                 if not volume["Attachments"]:
                     create_time = volume["CreateTime"]
                     days_since_creation = (current_time - create_time).days
+                     # Calculate age in hours
+                    age_in_hours = int((current_time - create_time).total_seconds() / 3600)
+                    cost_details = CostEstimator().calculate_cost(
+                        resource_type="EBS-Volumes",
+                        resource_size=volume["Size"],
+                        hours_running=age_in_hours
+                    )
 
                     # Mark volume as unused if it's older than the threshold
                     if days_since_creation >= DAYS_THRESHOLD:
@@ -46,8 +54,10 @@ class EbsVolumeScanner(ResourceScannerRegistry):
                             "Size": volume["Size"],  # Size in GiB
                             "CreateTime": create_time,
                             "AccountId": session.account_id,
-                            "Reason": f"Volume has been unattached for {days_since_creation} days, exceeding the threshold of {DAYS_THRESHOLD} days"
+                            "Reason": f"Volume has been unattached for {days_since_creation} days, exceeding the threshold of {DAYS_THRESHOLD} days",
+                            "Cost": {self.label: cost_details}
                         })
+                        logger.debug(f"EBS volume[{volume_id}] cost: {cost_details}")
                         logger.info(f"EBS volume {volume_id} ({volume_name}) is unused.")
 
             logger.info(f"Found {len(unused_volumes)} unused EBS volumes.")

@@ -6,7 +6,7 @@ from utils.logger import get_logger
 import locale
 import time
 
-# Set locale for currency formatting
+# Set locale for currency formatting (not used now)
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 logger = get_logger(__name__)
 
@@ -131,26 +131,47 @@ class CostEstimator:
             raise ValueError(f"Attribute filters not defined for resource type: {resource_type}")
 
         # Fetch price per hour from AWS Pricing API or cache
-        price_per_hour = self._get_aws_price(service_code, price_filters)
-        if price_per_hour is None:
+        price = self._get_aws_price(service_code, price_filters)
+        if price is None:
             logger.warning(f"Could not calculate cost for {resource_type} of size {resource_size}.")
             return None
-
-        # Calculate costs
-        cost_per_hour = price_per_hour
-        cost_per_day = cost_per_hour * 24
-        cost_per_month = cost_per_day * 30
-        cost_per_year = cost_per_day * 365
-        lifetime_cost = cost_per_hour * hours_running  # Lifetime cost
-
-        # Format costs in currency
-        def format_currency(amount):
-            return f"${amount:,.2f}"
+        
+        # For EC2, use the price per month as is
+        if resource_type.startswith("EBS"):
+            logger.debug(f"Price Per Gb[{resource_type}] [{price}]")
+            price_per_gb = price * resource_size
+            logger.debug(f"Price Per Gb[{resource_type}] * Volume Size: [{price_per_gb}]")
+            # EBS pricing is per month, so convert it to other units
+            price_per_hour = price_per_gb / 30 / 24  # Convert to hourly
+            price_per_day = price_per_gb / 30  # Convert to daily
+            price_per_year = price_per_gb * 12  # Yearly cost
+            lifetime_cost = price_per_gb * (hours_running  / 720) # Lifetime cost
+            price_per_month = price_per_gb  # For EBS, multiply by the resource size (volume size)
+        else:
+            # For EC2, calculate cost as usual (already per hour)
+            price_per_hour = price / 30 / 24  # Convert to hourly
+            price_per_day = price * 24  # Convert to daily
+            price_per_month = price * 720 # Convert to monthly
+            price_per_year = price * 365  # Yearly cost
+            lifetime_cost = price * hours_running  # Lifetime cost
 
         return {
-            "hourly": format_currency(cost_per_hour),
-            "daily": format_currency(cost_per_day),
-            "monthly": format_currency(cost_per_month),
-            "yearly": format_currency(cost_per_year),
-            "lifetime": format_currency(lifetime_cost),
+            "hourly": price_per_hour,
+            "daily": price_per_day,
+            "monthly": price_per_month,
+            "yearly": price_per_year,
+            "lifetime": lifetime_cost,
         }
+
+
+    def parse_currency(self, currency_str):
+        """
+        Parse a currency string like '$1,234.56' to a float (e.g., 1234.56).
+        
+        :param currency_str: The currency string to be parsed (e.g., '$1,234.56').
+        :return: The numerical value as a float.
+        """
+        if currency_str:
+            # Remove dollar sign and commas, then convert to float
+            return float(currency_str.replace('$', '').replace(',', ''))
+        return 0.0

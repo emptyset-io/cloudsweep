@@ -51,36 +51,53 @@
                 </tbody>
             </table>
             <br />
-            
             <div class="summary-block">
-                <h3>Combined Cost Breakdown Ec2 Instances.</h3>
+                <h3>Combined Cost Breakdown for AWS Resources</h3>
                 <table id="combined-costs">
                     <thead>
                         <tr>
-                            <th>Cost Type</th>
-                            <th>Amount</th>
+                            <th>Resource Type</th>
+                            <th>Hourly</th>
+                            <th>Daily</th>
+                            <th>Monthly</th>
+                            <th>Yearly</th>
+                            <th>Lifetime</th>
                         </tr>
                     </thead>
                     <tbody>
+                        <!-- Dynamic Resource Rows -->
+                        {% set total_hourly = 0 %}
+                        {% set total_daily = 0 %}
+                        {% set total_monthly = 0 %}
+                        {% set total_yearly = 0 %}
+                        {% set total_lifetime = 0 %}
+                        
+                        {% for resource_type, costs in combined_costs.items() %}
+                            {% if costs %}
+                                <tr>
+                                    <td>{{ resource_type }}</td>
+                                    <td>{{ "{:,.2f}".format(costs['hourly']) }}</td>
+                                    <td>{{ "{:,.2f}".format(costs['daily']) }}</td>
+                                    <td>{{ "{:,.2f}".format(costs['monthly']) }}</td>
+                                    <td>{{ "{:,.2f}".format(costs['yearly']) }}</td>
+                                    <td>{{ "{:,.2f}".format(costs['lifetime']) }}</td>
+                                </tr>
+                                {% set total_hourly = total_hourly + costs['hourly'] or 0 %}
+                                {% set total_daily = total_daily + costs['daily'] or 0 %}
+                                {% set total_monthly = total_monthly + costs['monthly'] or 0 %}
+                                {% set total_yearly = total_yearly + costs['yearly'] or 0 %}
+                                {% set total_lifetime = total_lifetime + costs['lifetime'] or 0 %}
+                            {% endif %}
+                        {% endfor %}
+
+                        <!-- All Totals Row -->
                         <tr>
-                            <td>Hourly</td>
-                            <td>${{ "{:,.2f}".format(combined_costs.hourly) }}</td>
-                        </tr>
-                        <tr>
-                            <td>Daily</td>
-                            <td>${{ "{:,.2f}".format(combined_costs.daily) }}</td>
-                        </tr>
-                        <tr>
-                            <td>Monthly</td>
-                            <td>${{ "{:,.2f}".format(combined_costs.monthly) }}</td>
-                        </tr>
-                        <tr>
-                            <td>Yearly</td>
-                            <td>${{ "{:,.2f}".format(combined_costs.yearly) }}</td>
-                        </tr>
-                        <tr>
-                            <td>Lifetime</td>
-                            <td>${{ "{:,.2f}".format(combined_costs.lifetime) }}</td>
+                            <td><strong>All Totals</strong></td>
+                            <td><strong>{{ "{:,.2f}".format(total_hourly) }}</strong></td>
+                            <td><strong>{{ "{:,.2f}".format(total_daily) }}</strong></td>
+                            <td><strong>{{ "{:,.2f}".format(total_monthly) }}</strong></td>
+                            <td><strong>{{ "{:,.2f}".format(total_yearly) }}</strong></td>
+                            <td><strong>{{ "{:,.2f}".format(total_lifetime) }}</strong></td>
                         </tr>
                     </tbody>
                 </table>

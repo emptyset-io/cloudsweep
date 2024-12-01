@@ -113,13 +113,7 @@ class HTMLReportGenerator:
         accounts_and_regions = {}
         resource_type_counts = {}
         resources = []
-        combined_costs = {
-            'hourly': 0,
-            'daily': 0,
-            'monthly': 0,
-            'yearly': 0,
-            'lifetime': 0
-        }
+        combined_costs = {}
 
         # Iterate through the scan results list
         for account_data in scan_results:
@@ -163,29 +157,20 @@ class HTMLReportGenerator:
                                 "details": self._format_resource_details(resource).replace("\n", "<br>")
                             })
 
-                            # If the resource is EC2 Instances, check for EBS cost and EC2 cost
-                            if label == "EC2 Instances":
-                                cost_data = resource.get("Cost", {})
+                            cost_data = resource.get("Cost", {})
+                            cost = cost_data.get(label, {})
+                            if cost:
+                                # Initialize combined_costs for the label dynamically based on cost keys
+                                if label not in combined_costs:
+                                    combined_costs[label] = {cost_type: 0 for cost_type in cost.keys()}
 
-                                # Handle EC2 cost
-                                ec2_cost = cost_data.get('EC2Cost', {})
-                                for cost_type in combined_costs:
-                                    if cost_type in ec2_cost:
-                                        ec2_value = self._parse_currency(ec2_cost[cost_type])
-                                        combined_costs[cost_type] += ec2_value
-                                
-                                # Handle EBS volumes cost
-                                ebs_cost = cost_data.get('EBSVolumesCost', [])
-                                for ebs_item in ebs_cost:
-                                    for cost_type in combined_costs:
-                                        if cost_type in ebs_item:
-                                            ebs_value = self._parse_currency(ebs_item[cost_type])
-                                            combined_costs[cost_type] += ebs_value
+                                for cost_type in cost:
+                                    cost_value = cost[cost_type]
+                                    combined_costs[label][cost_type] += cost_value
+
                     except ValueError:
                         logger.error(f"Scanner not found for resource type: {resource_type}")
-
         return accounts_and_regions, resource_type_counts, resources, combined_costs
-
     def _render_html_template(self, template_path, context):
         """
         Render the Jinja2 template with the provided context.
@@ -240,7 +225,8 @@ class HTMLReportGenerator:
         scripts = self._load_asset(os.path.join(self.asset_dir, 'scripts.js'))
 
         logger.debug(f"ScanTimings: {','.join(str(value) for value in scan_metrics)}")
-        logger.critical(f"{combined_costs}")
+        
+        logger.debug(f"Combined Costs: {combined_costs}")
         # Prepare context for template rendering
         context = {
             "accounts_and_regions": accounts_and_regions,
