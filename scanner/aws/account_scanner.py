@@ -32,7 +32,9 @@ class AWSAccountScanner:
         """
         logger.info(f"Starting scan for account {account_id} in regions {regions} using scanners {scanners}")
         all_scan_results = defaultdict(list)
-
+        if not regions:
+            logger.warning("No regions specified")
+            return
         # Iterate through each region
         for region in regions:
             logger.debug(f"Switching region to {region} for account {account_id}")

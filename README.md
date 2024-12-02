@@ -7,12 +7,20 @@ Cloud Sweep is a Python-based utility designed to scan AWS resources across mult
 - **Scan Multiple AWS Organizations & Regions**: Seamlessly scan multiple AWS organizations and all regions within those organizations to identify unused resources.
 - **Identify Unused Resources**: Detect unused AWS resources and generate detailed reports with explanations on why they are considered unused.
 - **Optimize AWS Resource Usage**: Take action on unused resources to reduce costs and streamline your AWS environment.
+- **Cost Showback**: Gives a breakdown of `hourly`, `daily`, `monthly`, `yearly` and `lifetime` cost for supported unused resources.
+### AWS Cost Estimator
 
+The **AWS Cost Estimator** calculates the cost of resources based on live AWS pricing. 
+
+#### Currently Supported Services:
+- **EC2**: Elastic Compute Cloud instances (e.g., `t2.micro`, `m5.large`).
+- **EBS**: Elastic Block Store volumes and snapshots.
+- **Elastic IPs**: Static IP addresses in the AWS cloud.
 ## Future Enhancements
 
 - **Integrate with Atlassian Tools (Jira/Confluence)**: Automatically generate workstreams for flagged resources in Jira and Confluence.
 - **Integrate with Slack & PagerDuty**: Set up alerts for newly discovered unused resources.
-- **Implement Cost Showback**: Display cost breakdowns of unused resources with customizable filtering options.
+- **Implement Cost Showback**: Add additional services to cost estimation
 - **Develop Real UI**: The current report ui is just a WIP with some basic features. 
 
 ## Example Report

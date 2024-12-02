@@ -32,7 +32,7 @@ class ArgumentParser:
         parser.add_argument("--days-threshold", type=int, default=int(os.getenv("CS_DAYS_THRESHOLD", 90)), help="The number of days to look back at resource metrics and history to determine if something is unused (default: 90 days).")
 
         args = parser.parse_args()
-
+    
         # If no critical arguments are passed, handle it gracefully
         if not (args.organization_role or args.runner_role or args.profile or args.list_scanners or args.all_scanners):
             parser.print_help()

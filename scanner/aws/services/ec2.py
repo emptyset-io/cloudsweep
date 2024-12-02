@@ -270,14 +270,14 @@ class Ec2Scanner(ResourceScannerRegistry):
         }
         # Add EC2 instance costs if applicable
         if instance_class and hours_running is not None:
-            ec2_cost_data = self.cost_estimator.calculate_cost("EC2", resource_size=instance_class, hours_running=hours_running)
+            ec2_cost_data = self.cost_estimator.calculate_cost(self.label, resource_size=instance_class, hours_running=hours_running)
             for cost_type in total_costs:
                 total_costs[cost_type] += ec2_cost_data.get(cost_type, 0)
 
         # Add EBS volume costs if provided
         if ebs_details and hours_running is not None:
             for ebs in ebs_details:
-                ebs_cost_data = self.cost_estimator.calculate_cost("EBS-Volumes", resource_size=ebs["SizeGB"], hours_running=hours_running)
+                ebs_cost_data = self.cost_estimator.calculate_cost("EBS Volumes", resource_size=ebs["SizeGB"], hours_running=hours_running)
                 for cost_type in total_costs:
                     total_costs[cost_type] += ebs_cost_data.get(cost_type, 0)
 
@@ -292,6 +292,7 @@ class Ec2Scanner(ResourceScannerRegistry):
         instance_name = params["instance_name"]
         instance_class = params["instance_class"]
         reasons = params["reasons"]
+        session = params["session"]
         hours_running = params.get("hours_running")
         ebs_details = params.get("ebs_details")
         cost_data = params.get("cost_data")
@@ -301,6 +302,7 @@ class Ec2Scanner(ResourceScannerRegistry):
             reasons = []  # Default to an empty list if 'reasons' is not iterable
 
         response = {
+            "AccountId": session.account_id,
             "ResourceId": instance["InstanceId"],
             "ResourceName": instance_name,
             "InstanceClass": instance_class,

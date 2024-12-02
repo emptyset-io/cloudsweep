@@ -42,7 +42,7 @@ class EbsSnapshotScanner(ResourceScannerRegistry):
 
                 # Estimate snapshot cost
                 cost_details = CostEstimator().calculate_cost(
-                    resource_type="EBS-Snapshots",
+                    resource_type=self.label,
                     resource_size=size_in_gb,
                     hours_running=age_in_hours,
                 )

@@ -47,7 +47,7 @@ class Executor:
                 regions = self._get_regions_for_session(session)
                 logger.info(f"Regions for scanning: {regions}")
                 for scanner_name in self.scanners:
-                    if scanner_name == 'iam':
+                    if scanner_name.startswith("iam"):
                         # Only scan IAM once per account (using the 'Global' region)
                         futures.append(
                             executor.submit(self._scan_region_scanner, scanner, session, account_id, 'Global', scanner_name)
@@ -82,12 +82,14 @@ class Executor:
 
         # Store metrics in the instance
         self.scan_metrics = {
+            "start_time": self.start_time,
+            "end_time": self.end_time,
             "total_scans": self.total_scans,
             "avg_scans_per_second": round(avg_scans_per_second, 2),
             "total_run_time": round(total_run_time, 2),
         }
 
-        return results
+        return results, self.scan_metrics
 
     def _get_regions_for_session(self, session):
         """

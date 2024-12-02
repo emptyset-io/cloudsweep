@@ -1,5 +1,9 @@
+from datetime import datetime, timezone
 from utils.logger import get_logger
+from config.config import DAYS_THRESHOLD
 from scanner.resource_scanner_registry import ResourceScannerRegistry
+from scanner.aws.utils.scanner_helper import extract_tag_value
+from scanner.aws.cost_estimator import CostEstimator
 
 logger = get_logger(__name__)
 
@@ -29,14 +33,21 @@ class EipScanner(ResourceScannerRegistry):
                 # Check if the Elastic IP is not associated with any resource
                 if "InstanceId" not in addr and "NetworkInterfaceId" not in addr:
                     if not self._check_nat_gateway_association(ec2_client, allocation_id):
+                        # Calculate the cost of unused Elastic IP
+                        cost_details = CostEstimator().calculate_cost(
+                            resource_type=self.label,
+                            hours_running=0  # Assuming unused IPs haven't been running for any hours
+                        )
+
                         unused_ips.append({
                             "ResourceId": allocation_id,
                             "ResourceName": public_ip,
                             "AccountId": session.account_id,
                             "Name": public_ip,  # Use PublicIp as a display name
-                            "Reason": "Not associated with any resource (EC2 Instance, Network Interface, or NAT Gateway)."
+                            "Reason": "Not associated with any resource (EC2 Instance, Network Interface, or NAT Gateway).",
+                            "Cost": {self.label: cost_details}
                         })
-                        logger.debug(f"Elastic IP {public_ip} is unused and added to the list.")
+                        logger.debug(f"Elastic IP {public_ip} is unused and added to the list. Cost: {cost_details}")
 
             logger.info(f"Found {len(unused_ips)} unused Elastic IPs.")
             return unused_ips

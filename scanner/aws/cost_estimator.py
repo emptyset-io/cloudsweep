@@ -96,30 +96,30 @@ class CostEstimator:
             logger.error(f"Error retrieving pricing for {service_code}: {error}")
             return None
 
-    def calculate_cost(self, resource_type, resource_size=None, hours_running=0):
+    def calculate_cost(self, resource_type, resource_size=None, region = "us-east-1", hours_running=0):
         """
         Calculates the cost for a given resource type, size, and running duration.
         """
         # Map resource types to AWS service codes
         service_code_map = {
-            "EBS-Volumes": "AmazonEC2",  # Correct service code for EBS Volumes
-            "EC2": "AmazonEC2",
-            "EBS-Snapshots": "AmazonEC2",  # Correct service code for EBS Snapshots
-            "RDS": "AmazonRDS",
+            "EBS Volumes": "AmazonEC2",  # Correct service code for EBS Volumes
+            "EC2 Instances": "AmazonEC2",
+            "EBS Snapshots": "AmazonEC2",  # Correct service code for EBS Snapshots
+            "RDS Instances": "AmazonRDS",
             "DynamoDB": "AmazonDynamoDB",
-            "EIP": "AmazonEC2",
-            "LoadBalancer": "ElasticLoadBalancing",
+            "Elastic IPs": "AmazonEC2",
+            "Load Balancers": "ElasticLoadBalancing",
         }
 
         # Attribute filters for pricing queries
         price_filter_map = {
-            "EBS-Volumes": {"productFamily": "Storage", "volumeType": "General Purpose"},
-            "EC2": {"productFamily": "Compute Instance", "instanceType": resource_size},
-            "EBS-Snapshots": {"productFamily": "Storage Snapshot"},
-            "RDS": {"productFamily": "Database Instance", "instanceType": resource_size},
+            "EBS Volumes": {"productFamily": "Storage", "volumeType": "General Purpose"},
+            "EC2 Instances": {"productFamily": "Compute Instance", "instanceType": resource_size},
+            "EBS Snapshots": {"productFamily": "Storage Snapshot"},
+            "RDS Instances": {"productFamily": "Database Instance", "instanceType": resource_size},
             "DynamoDB": {"productFamily": "Non-relational Database"},
-            "EIP": {"productFamily": "IP Address"},
-            "LoadBalancer": {"productFamily": "Load Balancer"},
+            "Elastic IPs": {"productFamily": "Elastic IP"},
+            "Load Balancers": {"productFamily": "Load Balancer", "location": region},
         }
 
         service_code = service_code_map.get(resource_type)
@@ -154,14 +154,18 @@ class CostEstimator:
             price_per_month = price * 720 # Convert to monthly
             price_per_year = price * 365  # Yearly cost
             lifetime_cost = price * hours_running  # Lifetime cost
-
-        return {
+        if resource_type == "Elastic IPs":
+            lifetime_cost = "N/A"
+        
+        combined_cost = {
             "hourly": price_per_hour,
             "daily": price_per_day,
             "monthly": price_per_month,
             "yearly": price_per_year,
             "lifetime": lifetime_cost,
         }
+        
+        return combined_cost
 
 
     def parse_currency(self, currency_str):

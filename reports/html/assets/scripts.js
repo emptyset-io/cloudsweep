@@ -194,3 +194,53 @@ function displayLocalReportTime() {
 window.onload = function() {
     displayLocalReportTime();
 };
+
+function addTooltipsForNA() {
+    // Find all text nodes containing "N/A"
+    const elements = document.querySelectorAll("*");
+
+    elements.forEach((element) => {
+        if (element.childNodes.length) {
+            element.childNodes.forEach((node) => {
+                if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim() === "N/A") {
+                    // Create a span with click functionality
+                    const span = document.createElement("span");
+                    span.textContent = "N/A";
+                    span.style.cursor = "pointer";
+                    span.style.color = "#FF7F32";
+
+                    // Add event listener for click to show a custom tooltip
+                    span.addEventListener("click", function() {
+                        const tooltip = document.createElement("div");
+                        tooltip.textContent = "This resource does not have historical metrics";
+                        tooltip.style.position = "absolute";
+                        tooltip.style.background = "rgba(0, 0, 0, 0.75)";
+                        tooltip.style.color = "white";
+                        tooltip.style.padding = "5px 10px";
+                        tooltip.style.borderRadius = "5px";
+                        tooltip.style.zIndex = "1000";
+
+                        // Position the tooltip near the span element
+                        const rect = span.getBoundingClientRect();
+                        tooltip.style.top = `${rect.top + window.scrollY + rect.height + 5}px`;
+                        tooltip.style.left = `${rect.left + window.scrollX}px`;
+
+                        // Append tooltip to the body
+                        document.body.appendChild(tooltip);
+
+                        // Remove tooltip after 3 seconds
+                        setTimeout(() => {
+                            tooltip.remove();
+                        }, 3000);
+                    });
+
+                    // Replace the text node with the new span
+                    element.replaceChild(span, node);
+                }
+            });
+        }
+    });
+}
+
+// Call the function on document load
+document.addEventListener("DOMContentLoaded", addTooltipsForNA);
