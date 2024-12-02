@@ -149,10 +149,10 @@ class CostEstimator:
             price_per_month = price_per_gb  # For EBS, multiply by the resource size (volume size)
         else:
             # For EC2, calculate cost as usual (already per hour)
-            price_per_hour = price / 30 / 24  # Convert to hourly
+            price_per_hour = price  # Convert to hourly
             price_per_day = price * 24  # Convert to daily
             price_per_month = price * 720 # Convert to monthly
-            price_per_year = price * 365  # Yearly cost
+            price_per_year = price * 720 * 12  # Yearly cost
             lifetime_cost = price * hours_running  # Lifetime cost
         if resource_type == "Elastic IPs":
             lifetime_cost = "N/A"
