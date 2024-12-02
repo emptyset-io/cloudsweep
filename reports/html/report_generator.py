@@ -1,5 +1,4 @@
 import os
-import time
 from datetime import datetime
 import pytz
 from jinja2 import Environment, FileSystemLoader
@@ -8,290 +7,183 @@ from scanner.resource_scanner_registry import ResourceScannerRegistry
 
 logger = get_logger(__name__)
 
-class HTMLReportGenerator:
+def get_directories():
+    """Retrieve template and asset directories."""
+
+    # Base directory relative to this file
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    logger.critical(base_dir)
+    # Define template and asset directories
+    template_dir = os.path.join(base_dir, "templates")
+    logger.critical(template_dir)
+    asset_dir = os.path.join(base_dir, "assets")
+
+
+    if not os.path.exists(template_dir):
+        raise FileNotFoundError(f"Template directory not found: {template_dir}")
+    if not os.path.exists(asset_dir):
+        raise FileNotFoundError(f"Asset directory not found: {asset_dir}")
+
+    return template_dir, asset_dir
+
+def load_asset(asset_path):
+    """Load the content of a specified asset file."""
+    try:
+        logger.debug(f"Loading asset from {asset_path}")
+        with open(asset_path, "r") as file:
+            return file.read()
+    except FileNotFoundError:
+        logger.error(f"Asset not found: {asset_path}")
+        return ""
+
+def calculate_duration(total_scan_time):
+    """Calculate the scan duration in a human-readable format."""
+    duration = round(total_scan_time, 2)
+    days, remainder = divmod(duration, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    if days > 0:
+        duration_str = f"{int(days)} day(s) {int(hours)} hour(s)"
+    elif hours > 0:
+        duration_str = f"{int(hours)} hour(s) {int(minutes)} minute(s)"
+    elif minutes > 0:
+        duration_str = f"{int(minutes)} minute(s) {int(seconds)} second(s)"
+    else:
+        duration_str = f"{int(seconds)} second(s)"
+
+    logger.debug(f"Calculated duration: {duration_str}")
+    return duration, duration_str
+
+def calculate_totals(combined_costs):
     """
-    Class to generate HTML reports from AWS scan results.
+    Compute totals for combined costs and add a 'Totals' row.
 
-    This class is responsible for processing scan data, formatting the report, 
-    rendering it using Jinja2 templates, and saving it as an HTML file.
+    Args:
+        combined_costs (dict): Dictionary with resource types as keys and costs as values.
+
+    Returns:
+        dict: Updated combined costs with a 'Totals' row.
     """
-    def __init__(self):
-        """
-        Initializes the report generator with template and asset directories.
-        The template and asset directories are set relative to the current file's directory.
-        """
-        # Get the absolute path of the current file
-        base_dir = os.path.dirname(os.path.abspath(__file__))
+    total_row = {
+        "hourly": 0,
+        "daily": 0,
+        "monthly": 0,
+        "yearly": 0,
+        "lifetime": 0,
+    }
 
-        # Set the directories relative to the current script location
-        self.template_dir = os.path.join(base_dir, "templates")
-        self.asset_dir = os.path.join(base_dir, "assets")
-        self.resource_scanner_registry = ResourceScannerRegistry
-        # Ensure the directories exist (optional, for validation)
-        if not os.path.exists(self.template_dir):
-            raise FileNotFoundError(f"Template directory not found: {self.template_dir}")
-        if not os.path.exists(self.asset_dir):
-            raise FileNotFoundError(f"Asset directory not found: {self.asset_dir}")
+    for costs in combined_costs.values():
+        if costs:  # Ensure the costs dictionary is not None
+            total_row["hourly"] += costs.get("hourly", 0)
+            total_row["daily"] += costs.get("daily", 0)
+            total_row["monthly"] += costs.get("monthly", 0)
+            total_row["yearly"] += costs.get("yearly", 0)
+            total_row["lifetime"] += costs.get("lifetime", 0)
 
-    def _load_asset(self, asset_path):
-        """
-        Utility function to load file content from the given path.
-        
-        :param asset_path: Path to the asset file (CSS, JS, etc.).
-        :return: File content as a string.
-        """
-        try:
-            logger.debug(f"Loading asset from {asset_path}")
-            with open(asset_path, "r") as file:
-                return file.read()
-        except FileNotFoundError:
-            logger.error(f"Asset not found: {asset_path}")
-            return ""
+    # Add totals row
+    combined_costs["Totals"] = total_row
+    return combined_costs
 
-    def _calculate_duration(self, total_scan_time):
-        """
-        Calculate the duration from the total scan time (in seconds) and return it
-        in a human-readable format based on whether it is seconds, minutes, hours, or days.
+def format_report_time(start_time):
+    """Format the report start time in UTC."""
+    utc_time = pytz.utc.localize(datetime.utcfromtimestamp(start_time))
+    formatted_time = utc_time.strftime("%Y-%m-%d %H:%M:%S")
+    logger.debug(f"Formatted report start time: {formatted_time}")
+    return formatted_time
 
-        :param total_scan_time: The total scan time in seconds (floating-point number).
-        :return: Duration in seconds and human-readable format.
-        """
-        duration = round(total_scan_time, 2)
+def parse_currency(currency_str):
+    """Parse a currency string into a float."""
+    return float(currency_str.replace('$', '').replace(',', '')) if currency_str else 0.0
 
-        # Calculate the time breakdown
-        days, remainder = divmod(duration, 86400)  # 1 day = 86400 seconds
-        hours, remainder = divmod(remainder, 3600)  # 1 hour = 3600 seconds
-        minutes, seconds = divmod(remainder, 60)   # 1 minute = 60 seconds
+def extract_scan_data(scan_results):
+    """Extract and process scan data for report generation."""
+    accounts_and_regions = {}
+    resource_type_counts = {}
+    resources = []
+    combined_costs = {}
 
-        # Build the human-readable string dynamically
-        if days > 0:
-            duration_str = f"{int(days)} day(s) {int(hours)} hour(s)"
-        elif hours > 0:
-            duration_str = f"{int(hours)} hour(s) {int(minutes)} minute(s)"
-        elif minutes > 0:
-            duration_str = f"{int(minutes)} minute(s) {int(seconds)} second(s)"
-        else:
-            duration_str = f"{int(seconds)} second(s)"
+    resource_scanner_registry = ResourceScannerRegistry
 
-        logger.debug(f"Calculated duration: {duration_str}")
-        return duration, duration_str
+    for account_data in scan_results:
+        account_id = account_data.get("account_id", "N/A")
+        regions = [r for r in account_data.get("regions", []) if r != "Global"]
+        scan_data = account_data.get("scan_results", {})
 
-    def _format_report_time(self, start_time):
-        """
-        Format the report generation start time in UTC.
-        
-        :param start_time: The start time as a Unix timestamp.
-        :return: The formatted start time in UTC.
-        """
-        utc_time = pytz.utc.localize(datetime.utcfromtimestamp(start_time))
-        formatted_time = utc_time.strftime("%Y-%m-%d %H:%M:%S")
-        logger.debug(f"Formatted report start time: {formatted_time}")
-        return formatted_time
+        accounts_and_regions.setdefault(account_id, []).extend([r for r in regions if r not in accounts_and_regions[account_id]])
 
-    def _parse_currency(self, currency_str):
-        """
-        Parse a currency string like '$1,234.56' to a float (e.g., 1234.56).
-        
-        :param currency_str: The currency string to be parsed (e.g., '$1,234.56').
-        :return: The numerical value as a float.
-        """
-        if currency_str:
-            # Remove dollar sign and commas, then convert to float
-            return float(currency_str.replace('$', '').replace(',', ''))
-        return 0.0
+        for region, region_data in scan_data.items():
+            for resource_type, resource_list in region_data.items():
+                try:
+                    scanner = resource_scanner_registry.get_scanner(resource_type)
+                    label = scanner.label
+                    resource_type_counts[label] = resource_type_counts.get(label, 0) + len(resource_list)
 
-    def _extract_scan_data(self, scan_results):
-        """
-        Extract relevant data from scan results to be used in the report,
-        including calculating the combined lifetime cost for EC2 and EBS resources,
-        but only for EC2 Instances.
+                    for resource in resource_list:
+                        resources.append({
+                            "account_id": account_id,
+                            "region": region,
+                            "resource_type": label,
+                            "name": resource.get("ResourceName", "N/A"),
+                            "resource_id": resource.get("ResourceId", "N/A"),
+                            "reason": resource.get("Reason", "N/A"),
+                            "details": format_resource_details(resource).replace("\n", "<br>")
+                        })
 
-        :param scan_results: The scan results list containing resources and metadata.
-        :return: A tuple containing accounts and regions, resource counts, resource details, and combined lifetime cost for EC2 and EBS.
-        """
-        logger.debug("Extracting scan data")
-        accounts_and_regions = {}
-        resource_type_counts = {}
-        resources = []
-        combined_costs = {}
+                        cost_data = resource.get("Cost", {}).get(label, {})
+                        combined_costs.setdefault(label, {}).update({k: combined_costs[label].get(k, 0) + v for k, v in cost_data.items()})
+                except ValueError:
+                    logger.error(f"Scanner not found for resource type: {resource_type}")
 
-        # Iterate through the scan results list
-        for account_data in scan_results:
-            account_id = account_data.get("account_id", "N/A")
-            regions = account_data.get("regions", [])
-            scan_data = account_data.get("scan_results", {})
+    return accounts_and_regions, resource_type_counts, resources, combined_costs
 
-            # Populate accounts and regions
-            if account_id not in accounts_and_regions:
-                accounts_and_regions[account_id] = []
+def format_resource_details(resource):
+    """Format resource details for display in the report."""
+    if isinstance(resource, dict):
+        return "\n".join([f"{k}: {v}" for k, v in resource.items()])
+    elif isinstance(resource, list):
+        return "\n".join(str(item) for item in resource)
+    return str(resource)
 
-            # Filter out the "Global" region
-            filtered_regions = [region for region in regions if region != "Global"]
+def render_html(template_dir, template_path, context):
+    """Render an HTML template with the given context."""
+    logger.debug(f"Rendering template: {template_path}")
+    env = Environment(loader=FileSystemLoader(searchpath=template_dir))
+    template = env.get_template(template_path)
+    return template.render(context)
 
-            # Only add regions that are not "Global"
-            for region in filtered_regions:
-                if region not in accounts_and_regions[account_id]:
-                    accounts_and_regions[account_id].append(region)
+def save_html(content, filename):
+    """Save the generated HTML content to a file."""
+    logger.debug(f"Saving HTML content to file: {filename}")
+    with open(filename, 'w') as file:
+        file.write(content)
 
-            # Process each region's resources
-            for region, region_data in scan_data.items():
-                for resource_type, resource_list in region_data.items():
-                    # Lookup the scanner using ResourceScannerMap
-                    try:
-                        scanner = self.resource_scanner_registry.get_scanner(resource_type)
-                        label = scanner.label  # Get the name from the scanner
-                        # Update resource type counts
-                        resource_type_counts[label] = (
-                            resource_type_counts.get(label, 0) + len(resource_list)
-                        )
+def generate_html_report(scan_results, start_time, scan_metrics, filename="scan_report.html"):
+    """Main function to generate an HTML report."""
+    logger.info("Generating HTML report")
+    template_dir, asset_dir  = get_directories()
+    accounts_and_regions, resource_type_counts, resources, totals = extract_scan_data(scan_results)
+    _, duration_str = calculate_duration(scan_metrics.get("total_run_time", 0))
+    scan_metrics["total_run_time"] = duration_str
 
-                        # Collect resource details
-                        for resource in resource_list:
-                            resources.append({
-                                "account_id": account_id,
-                                "region": region,
-                                "resource_type": label,
-                                "name": resource.get("ResourceName") or "N/A",
-                                "resource_id": resource.get("ResourceId") or "N/A",
-                                "reason": resource.get("Reason", "N/A"),
-                                "details": self._format_resource_details(resource).replace("\n", "<br>")
-                            })
+    report_generated_at = format_report_time(start_time)
+    styles = load_asset(os.path.join(asset_dir, 'styles.css'))
+    scripts = load_asset(os.path.join(asset_dir, 'scripts.js'))
+    combined_costs = calculate_totals(totals)
+    
+    context = {
+        "accounts_and_regions": accounts_and_regions,
+        "report_generated_at": report_generated_at,
+        "resource_type_counts": resource_type_counts,
+        "resources": resources,
+        "start_time": start_time,
+        "styles": styles,
+        "scripts": scripts,
+        "scan_metrics": scan_metrics,
+        "combined_costs": combined_costs,
+    }
 
-                            cost_data = resource.get("Cost", {})
-                            cost = cost_data.get(label, {})
-                            if cost:
-                                # Initialize combined_costs for the label dynamically based on cost keys
-                                if label not in combined_costs:
-                                    combined_costs[label] = {cost_type: 0 for cost_type in cost.keys()}
-
-                                for cost_type in cost:
-                                    cost_value = cost[cost_type]
-                                    combined_costs[label][cost_type] += cost_value
-
-                    except ValueError:
-                        logger.error(f"Scanner not found for resource type: {resource_type}")
-        return accounts_and_regions, resource_type_counts, resources, combined_costs
-    def _render_html_template(self, template_path, context):
-        """
-        Render the Jinja2 template with the provided context.
-        
-        :param template_path: Path to the Jinja2 template.
-        :param context: Data to be passed into the template for rendering.
-        :return: Rendered HTML content.
-        """
-        logger.debug(f"Rendering template: {template_path}")
-        env = Environment(loader=FileSystemLoader(searchpath=self.template_dir))
-        template = env.get_template(template_path)
-        return template.render(context)
-
-    def _save_html_to_file(self, content, filename):
-        """
-        Save the generated HTML content to a file.
-        
-        :param content: The HTML content to be saved.
-        :param filename: The output filename.
-        """
-        logger.debug(f"Saving HTML content to file: {filename}")
-        with open(filename, 'w') as file:
-            file.write(content)
-
-    def generate_html(self, scan_results, start_time, scan_metrics, filename="scan_report.html"):
-        """
-        Generate an HTML report from scan results using Jinja2 templates.
-        
-        :param scan_results: The scan results containing resources and metadata.
-        :param start_time: The start time of the scan (Unix timestamp).
-        :param scan_metrics: Timings for the scan process.
-        :param filename: The name of the output HTML file (default: "scan_report.html").
-        :return: The generated HTML content.
-        """
-        logger.info("Generating HTML report")
-        
-        # Extract scan data and combined lifetime cost
-        accounts_and_regions, resource_type_counts, resources, combined_costs = self._extract_scan_data(scan_results)
-
-        # Use the total_run_time from scan_metrics to calculate the duration
-        total_scan_time = scan_metrics.get("total_run_time", 0)  # Ensure total_run_time is available in scan_metrics
-        _, duration_str = self._calculate_duration(total_scan_time)
-
-        # Overwrite scan_metrics.total_run_time with the human-readable duration
-        scan_metrics["total_run_time"] = duration_str
-
-        # Format report generation time
-        report_generated_at = self._format_report_time(start_time)
-
-        # Load external assets (CSS/JS)
-        styles = self._load_asset(os.path.join(self.asset_dir, 'styles.css'))
-        scripts = self._load_asset(os.path.join(self.asset_dir, 'scripts.js'))
-
-        logger.debug(f"ScanTimings: {','.join(str(value) for value in scan_metrics)}")
-        
-        logger.debug(f"Combined Costs: {combined_costs}")
-        # Prepare context for template rendering
-        context = {
-            "accounts_and_regions": accounts_and_regions,
-            "report_generated_at": report_generated_at,
-            "resource_type_counts": resource_type_counts,
-            "resources": resources,
-            "start_time": start_time,
-            "styles": styles,
-            "scripts": scripts,
-            "scan_metrics": scan_metrics,
-            "combined_costs": combined_costs,
-        }
-
-        # Render the HTML report
-        html_content = self._render_html_template('./scan_report_template.j2', context)
-
-        # Save the report to a file
-        self._save_html_to_file(html_content, filename)
-
-        logger.info(f"Report generated successfully: {filename}")
-        return html_content
-
-    def _format_resource_details(self, resource):
-        """
-        Format the resource details to make it suitable for CSV output.
-        Converts dictionaries and lists to a formatted string where each key-value pair
-        is printed on a new line. Handles nested structures (dictionaries, lists) properly.
-        """
-        def format_dict(data, indent_level=1):
-            """Helper function to format dictionary details."""
-            formatted = ""
-            for key, value in data.items():
-                formatted += f"{'  ' * indent_level}{key}: {value}\n"
-            return formatted
-
-        def format_list(data, indent_level=1):
-            """Helper function to format list details."""
-            formatted = ""
-            for item in data:
-                if isinstance(item, dict):
-                    formatted += format_dict(item, indent_level)
-                else:
-                    formatted += f"{'  ' * indent_level}{item}\n"
-            return formatted
-
-        if isinstance(resource, dict):
-            details = ""
-            for key, value in resource.items():
-                if isinstance(value, dict):
-                    details += f"{key}:\n{format_dict(value)}"
-                elif isinstance(value, list):
-                    details += f"{key}:\n{format_list(value)}"
-                else:
-                    details += f"{key}: {value}\n"
-            return details
-        elif isinstance(resource, list):
-            return format_list(resource, indent_level=0)
-        else:
-            return str(resource)
-        
-    def _format_currency(self, amount):
-        """
-        Format the amount as a currency string.
-
-        :param amount: The amount to format.
-        :return: The formatted currency string.
-        """
-        return f"${amount:,.2f}"        
+    html_content = render_html(template_dir, "scan_report_template.j2", context)
+    save_html(html_content, filename)
+    logger.info(f"Report generated successfully: {filename}")
+    return html_content

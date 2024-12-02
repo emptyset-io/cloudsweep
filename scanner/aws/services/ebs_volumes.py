@@ -40,7 +40,7 @@ class EbsVolumeScanner(ResourceScannerRegistry):
                      # Calculate age in hours
                     age_in_hours = int((current_time - create_time).total_seconds() / 3600)
                     cost_details = CostEstimator().calculate_cost(
-                        resource_type="EBS-Volumes",
+                        resource_type=self.label,
                         resource_size=volume["Size"],
                         hours_running=age_in_hours
                     )

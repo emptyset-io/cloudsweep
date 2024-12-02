@@ -82,12 +82,14 @@ class Executor:
 
         # Store metrics in the instance
         self.scan_metrics = {
+            "start_time": self.start_time,
+            "end_time": self.end_time,
             "total_scans": self.total_scans,
             "avg_scans_per_second": round(avg_scans_per_second, 2),
             "total_run_time": round(total_run_time, 2),
         }
 
-        return results
+        return results, self.scan_metrics
 
     def _get_regions_for_session(self, session):
         """

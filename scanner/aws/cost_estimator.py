@@ -96,30 +96,30 @@ class CostEstimator:
             logger.error(f"Error retrieving pricing for {service_code}: {error}")
             return None
 
-    def calculate_cost(self, resource_type, resource_size=None, hours_running=0):
+    def calculate_cost(self, resource_type, resource_size=None, region = None, hours_running=0):
         """
         Calculates the cost for a given resource type, size, and running duration.
         """
         # Map resource types to AWS service codes
         service_code_map = {
-            "EBS-Volumes": "AmazonEC2",  # Correct service code for EBS Volumes
-            "EC2": "AmazonEC2",
-            "EBS-Snapshots": "AmazonEC2",  # Correct service code for EBS Snapshots
-            "RDS": "AmazonRDS",
+            "EBS Volumes": "AmazonEC2",  # Correct service code for EBS Volumes
+            "EC2 Instances": "AmazonEC2",
+            "EBS Snapshots": "AmazonEC2",  # Correct service code for EBS Snapshots
+            "RDS Instances": "AmazonRDS",
             "DynamoDB": "AmazonDynamoDB",
-            "EIP": "AmazonEC2",
-            "LoadBalancer": "ElasticLoadBalancing",
+            "Elastic Ips": "AmazonEC2",
+            "Load Balancers": "ElasticLoadBalancing",
         }
 
         # Attribute filters for pricing queries
         price_filter_map = {
-            "EBS-Volumes": {"productFamily": "Storage", "volumeType": "General Purpose"},
-            "EC2": {"productFamily": "Compute Instance", "instanceType": resource_size},
-            "EBS-Snapshots": {"productFamily": "Storage Snapshot"},
-            "RDS": {"productFamily": "Database Instance", "instanceType": resource_size},
+            "EBS Volumes": {"productFamily": "Storage", "volumeType": "General Purpose"},
+            "EC2 Instances": {"productFamily": "Compute Instance", "instanceType": resource_size},
+            "EBS Snapshots": {"productFamily": "Storage Snapshot"},
+            "RDS Instances": {"productFamily": "Database Instance", "instanceType": resource_size},
             "DynamoDB": {"productFamily": "Non-relational Database"},
-            "EIP": {"productFamily": "IP Address"},
-            "LoadBalancer": {"productFamily": "Load Balancer"},
+            "Elastic Ips": {"productFamily": "Elastic IP", "location": region},
+            "Load Balancers": {"productFamily": "Load Balancer"},
         }
 
         service_code = service_code_map.get(resource_type)

@@ -52,7 +52,7 @@
             </table>
             <br />
             <div class="summary-block">
-                <h3>Combined Cost Breakdown for AWS Resources</h3>
+               <h3>Combined Cost Breakdown for AWS Resources</h3>
                 <table id="combined-costs">
                     <thead>
                         <tr>
@@ -66,39 +66,16 @@
                     </thead>
                     <tbody>
                         <!-- Dynamic Resource Rows -->
-                        {% set total_hourly = 0 %}
-                        {% set total_daily = 0 %}
-                        {% set total_monthly = 0 %}
-                        {% set total_yearly = 0 %}
-                        {% set total_lifetime = 0 %}
-                        
                         {% for resource_type, costs in combined_costs.items() %}
-                            {% if costs %}
-                                <tr>
-                                    <td>{{ resource_type }}</td>
-                                    <td>{{ "{:,.2f}".format(costs['hourly']) }}</td>
-                                    <td>{{ "{:,.2f}".format(costs['daily']) }}</td>
-                                    <td>{{ "{:,.2f}".format(costs['monthly']) }}</td>
-                                    <td>{{ "{:,.2f}".format(costs['yearly']) }}</td>
-                                    <td>{{ "{:,.2f}".format(costs['lifetime']) }}</td>
-                                </tr>
-                                {% set total_hourly = total_hourly + costs['hourly'] or 0 %}
-                                {% set total_daily = total_daily + costs['daily'] or 0 %}
-                                {% set total_monthly = total_monthly + costs['monthly'] or 0 %}
-                                {% set total_yearly = total_yearly + costs['yearly'] or 0 %}
-                                {% set total_lifetime = total_lifetime + costs['lifetime'] or 0 %}
-                            {% endif %}
-                        {% endfor %}
-
-                        <!-- All Totals Row -->
                         <tr>
-                            <td><strong>All Totals</strong></td>
-                            <td><strong>{{ "{:,.2f}".format(total_hourly) }}</strong></td>
-                            <td><strong>{{ "{:,.2f}".format(total_daily) }}</strong></td>
-                            <td><strong>{{ "{:,.2f}".format(total_monthly) }}</strong></td>
-                            <td><strong>{{ "{:,.2f}".format(total_yearly) }}</strong></td>
-                            <td><strong>{{ "{:,.2f}".format(total_lifetime) }}</strong></td>
+                            <td>{{ resource_type }}</td>
+                            <td>${{ "{:,.2f}".format(costs['hourly']) }}</td>
+                            <td>${{ "{:,.2f}".format(costs['daily']) }}</td>
+                            <td>${{ "{:,.2f}".format(costs['monthly']) }}</td>
+                            <td>${{ "{:,.2f}".format(costs['yearly']) }}</td>
+                            <td>${{ "{:,.2f}".format(costs['lifetime']) }}</td>
                         </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
