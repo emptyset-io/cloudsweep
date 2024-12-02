@@ -82,8 +82,6 @@ def calculate_totals(combined_costs):
             total_row["yearly"] += costs.get("yearly", 0)
             if not costs.get("lifetime", "N/A") == "N/A":
                 total_row["lifetime"] += costs.get("lifetime", 0)
-            else:
-                total_row["lifetime"] = 0
 
     # Add totals row
     combined_costs["Totals"] = total_row
