@@ -15,7 +15,7 @@ The **AWS Cost Estimator** calculates the cost of resources based on live AWS pr
 #### Currently Supported Services:
 - **EC2**: Elastic Compute Cloud instances (e.g., `t2.micro`, `m5.large`).
 - **EBS**: Elastic Block Store volumes and snapshots.
-- **Elastic IPs**: Static IP addresses in the AWS cloud.
+- **Elastic IPs**: Static IP addresses.
 ## Future Enhancements
 
 - **Integrate with Atlassian Tools (Jira/Confluence)**: Automatically generate workstreams for flagged resources in Jira and Confluence.
