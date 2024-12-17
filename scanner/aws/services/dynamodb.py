@@ -48,7 +48,6 @@ class DynamoDBScanner(ResourceScannerRegistry):
                         "CreationDateTime": creation_time,
                         "ItemCount": table_info.get("ItemCount", 0),
                         "TableSizeBytes": table_info.get("TableSizeBytes", 0),
-                        "AccountId": session.account_id,
                         "Reason": reason,
                     })
                     logger.debug(f"DynamoDB table {table_name} is unused or underutilized: {reason}")

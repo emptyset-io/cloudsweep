@@ -52,6 +52,7 @@ def test_scan_resources_success(mock_get_scanner, aws_account_scanner, mock_boto
     """
     # Arrange
     account_id = "123456789012"
+    account_name = "TestAccount"
     regions = ["us-east-1", "us-west-2"]
     scanners = ["Scanner1", "Scanner2"]
 
@@ -75,7 +76,7 @@ def test_scan_resources_success(mock_get_scanner, aws_account_scanner, mock_boto
 
     # Act
     results = aws_account_scanner.scan_resources(
-        session=mock_boto_session, account_id=account_id, regions=regions, scanners=scanners
+        session=mock_boto_session, account_id=account_id, account_name=account_name, regions=regions, scanners=scanners
     )
 
     # Convert defaultdict to dict for comparison
@@ -89,6 +90,7 @@ def test_scan_resources_success(mock_get_scanner, aws_account_scanner, mock_boto
     # Expected results
     expected_results = {
         "account_id": account_id,
+        "account_name": account_name,
         "regions": regions,
         "scan_results": {
             "us-east-1": {
@@ -117,6 +119,7 @@ def test_scan_resources_scanner_not_found(mock_get_scanner, aws_account_scanner,
     """
     # Arrange
     account_id = "123456789012"
+    account_name = "TestAccount"
     regions = ["us-east-1"]
     scanners = ["NonExistentScanner"]
 
@@ -124,7 +127,7 @@ def test_scan_resources_scanner_not_found(mock_get_scanner, aws_account_scanner,
 
     # Act
     results = aws_account_scanner.scan_resources(
-        session=mock_boto_session, account_id=account_id, regions=regions, scanners=scanners
+        session=mock_boto_session, account_id=account_id, account_name=account_name, regions=regions, scanners=scanners
     )
 
     # Assert
@@ -138,6 +141,7 @@ def test_scan_resources_switch_region_error(mock_get_scanner, aws_account_scanne
     """
     # Arrange
     account_id = "123456789012"
+    account_name = "TestAccount"
     regions = ["us-east-1", "invalid-region"]
     scanners = ["Scanner1"]
 
@@ -148,7 +152,7 @@ def test_scan_resources_switch_region_error(mock_get_scanner, aws_account_scanne
 
     # Act
     results = aws_account_scanner.scan_resources(
-        session=mock_boto_session, account_id=account_id, regions=regions, scanners=scanners
+        session=mock_boto_session, account_id=account_id, account_name=account_name, regions=regions, scanners=scanners
     )
 
     # Assert
@@ -163,6 +167,7 @@ def test_scan_resources_scanner_error(mock_get_scanner, aws_account_scanner, moc
     """
     # Arrange
     account_id = "123456789012"
+    account_name = "TestAccount"
     regions = ["us-east-1"]
     scanners = ["FaultyScanner"]
 
@@ -172,7 +177,7 @@ def test_scan_resources_scanner_error(mock_get_scanner, aws_account_scanner, moc
 
     # Act
     results = aws_account_scanner.scan_resources(
-        session=mock_boto_session, account_id=account_id, regions=regions, scanners=scanners
+        session=mock_boto_session, account_id=account_id, account_name=account_name, regions=regions, scanners=scanners
     )
 
     # Assert

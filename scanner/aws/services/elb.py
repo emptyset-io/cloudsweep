@@ -40,7 +40,6 @@ class ElbScanner(ResourceScannerRegistry):
                     unused_lb.append({
                         "ResourceName": lb_name,
                         "ResourceId": lb_arn,
-                        "AccountId": session.account_id,
                         "TrafficMetrics": metric_data,
                         "Name": lb_name,
                         "Reason": reason

@@ -9,16 +9,11 @@ logger = get_logger(__name__)
 
 def get_directories():
     """Retrieve template and asset directories."""
-
-    # Base directory relative to this file
     base_dir = os.path.dirname(os.path.abspath(__file__))
     logger.debug(base_dir)
-    # Define template and asset directories
     template_dir = os.path.join(base_dir, "templates")
     logger.debug(template_dir)
     asset_dir = os.path.join(base_dir, "assets")
-    
-
 
     if not os.path.exists(template_dir):
         raise FileNotFoundError(f"Template directory not found: {template_dir}")
@@ -59,12 +54,6 @@ def calculate_duration(total_scan_time):
 def calculate_totals(combined_costs):
     """
     Compute totals for combined costs and add a 'Totals' row.
-
-    Args:
-        combined_costs (dict): Dictionary with resource types as keys and costs as values.
-
-    Returns:
-        dict: Updated combined costs with a 'Totals' row.
     """
     total_row = {
         "hourly": 0,
@@ -83,7 +72,6 @@ def calculate_totals(combined_costs):
             if not costs.get("lifetime", "N/A") == "N/A":
                 total_row["lifetime"] += costs.get("lifetime", 0)
 
-    # Add totals row
     combined_costs["Totals"] = total_row
     return combined_costs
 
@@ -112,13 +100,15 @@ def extract_scan_data(scan_results):
     for account_data in scan_results:
         logger.debug(f"Processing account data: {account_data}")
         account_id = account_data.get("account_id", "N/A")
+        account_name = account_data.get("account_name", "Unknown Account")
+        account_id_name = f"{account_id} - {account_name}"  # Combine account_id and account_name
         regions = [r for r in account_data.get("regions", []) if r != "Global"]
-        logger.info(f"Account ID: {account_id}, Regions: {regions}")
+        logger.info(f"Account ID: {account_id_name}, Regions: {regions}")
         scan_data = account_data.get("scan_results", {})
 
-        if account_id not in accounts_and_regions:
-            accounts_and_regions[account_id] = []
-        accounts_and_regions[account_id].extend([r for r in regions if r not in accounts_and_regions[account_id]])
+        if account_id_name not in accounts_and_regions:
+            accounts_and_regions[account_id_name] = []
+        accounts_and_regions[account_id_name].extend([r for r in regions if r not in accounts_and_regions[account_id_name]])
         logger.debug(f"Updated accounts and regions: {accounts_and_regions}")
 
         for region, region_data in scan_data.items():
@@ -128,15 +118,15 @@ def extract_scan_data(scan_results):
                     logger.debug(f"Processing resource type: {resource_type}, resources: {resource_list}")
                     scanner = resource_scanner_registry.get_scanner(resource_type)
                     label = scanner.label
-                    logger.info(f"Found scanner for resource type '{resource_type}' with label '{label}'")
+                    logger.debug(f"Found scanner for resource type '{resource_type}' with label '{label}'")
                     resource_type_counts[label] = resource_type_counts.get(label, 0) + len(resource_list)
 
                     for resource in resource_list:
-                        resource_details = format_resource_details(resource).replace("\n", "<br>")
+                        resource_details = format_resource_details(resource).replace("\n", "<br/><br/>")
                         logger.debug(f"Processed resource details: {resource_details}")
 
                         resources.append({
-                            "account_id": account_id,
+                            "account_id_name": account_id_name,  # Use account_id_name here
                             "region": region,
                             "resource_type": label,
                             "name": resource.get("ResourceName", "N/A"),
@@ -148,13 +138,11 @@ def extract_scan_data(scan_results):
                             cost_data = resource.get("Cost", {}).get(label, {})
                             for k, v in cost_data.items():
                                 combined_costs.setdefault(label, {}).setdefault(k, 0)
-                            # Only update if its value is not "N/A"
                                 if v != "N/A":
                                     combined_costs[label][k] += v
                                 else:
                                     combined_costs[label][k] = v
                             logger.debug(f"Updated combined costs for {label}: {combined_costs[label]}")
-
 
                 except ValueError:
                     logger.error(f"Scanner not found for resource type: {resource_type}")
@@ -165,7 +153,6 @@ def extract_scan_data(scan_results):
     logger.debug(f"Resources: {resources}")
     logger.debug(f"Combined Costs: {combined_costs}")
     return accounts_and_regions, resource_type_counts, resources, combined_costs
-
 
 def format_resource_details(resource):
     """Format resource details for display in the report."""
@@ -200,7 +187,7 @@ def generate_html_report(scan_results, start_time, scan_metrics, filename="scan_
     styles = load_asset(os.path.join(asset_dir, 'styles.css'))
     scripts = load_asset(os.path.join(asset_dir, 'scripts.js'))
     combined_costs = calculate_totals(totals)
-    
+    logger.critical(accounts_and_regions)
     context = {
         "accounts_and_regions": accounts_and_regions,
         "report_generated_at": report_generated_at,
@@ -216,4 +203,4 @@ def generate_html_report(scan_results, start_time, scan_metrics, filename="scan_
     html_content = render_html(template_dir, "scan_report_template.j2", context)
     save_html(html_content, filename)
     logger.info(f"Report generated successfully: {filename}")
-    return html_content
+    return filename

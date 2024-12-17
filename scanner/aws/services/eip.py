@@ -42,7 +42,6 @@ class EipScanner(ResourceScannerRegistry):
                         unused_ips.append({
                             "ResourceId": allocation_id,
                             "ResourceName": public_ip,
-                            "AccountId": session.account_id,
                             "Name": public_ip,  # Use PublicIp as a display name
                             "Reason": "Not associated with any resource (EC2 Instance, Network Interface, or NAT Gateway).",
                             "Cost": {self.label: cost_details}

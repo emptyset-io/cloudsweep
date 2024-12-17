@@ -64,18 +64,19 @@ def test_scan_region_scanner(executor, mock_aws_account_scanner, mock_session_ma
     mock_scanner = MagicMock()
     mock_session = MagicMock()
     account_id = "123456789012"
+    account_name = "Mock Account"
     region = "us-east-1"
     scanner_name = "Scanner1"
 
     # Successful scan
     mock_scanner.scan_resources.return_value = {"result": "success"}
-    result = executor._scan_region_scanner(mock_scanner, mock_session, account_id, region, scanner_name)
+    result = executor._scan_region_scanner(mock_scanner, mock_session, account_id, account_name, region, scanner_name)
     assert result == {"result": "success"}
-    mock_scanner.scan_resources.assert_called_once_with(mock_session, account_id, [region], [scanner_name])
+    mock_scanner.scan_resources.assert_called_once_with(mock_session, account_id, account_name, [region], [scanner_name])
 
     # Scan failure
     mock_scanner.scan_resources.side_effect = Exception("Scan error")
-    result = executor._scan_region_scanner(mock_scanner, mock_session, account_id, region, scanner_name)
+    result = executor._scan_region_scanner(mock_scanner, mock_session, account_id, account_name, region, scanner_name)
     assert result is None
 
 # @patch("scanner.executor.ThreadPoolExecutor")

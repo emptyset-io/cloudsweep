@@ -20,24 +20,25 @@ class AWSAccountScanner:
         self.session_manager = session_manager
         logger.info("AWSAccountScanner initialized.")
 
-    def scan_resources(self, session, account_id, regions, scanners):
+    def scan_resources(self, session, account_id, account_name, regions, scanners):
         """
         Perform the scan for each resource type based on the selected scanners across all regions.
 
         :param session: Boto3 session object
         :param account_id: The AWS account ID
+        :param account_name: The AWS account Nae
         :param regions: List of AWS regions to scan
         :param scanners: List of scanners (strings representing scanner labels)
         :return: A dictionary of scan results
         """
-        logger.info(f"Starting scan for account {account_id} in regions {regions} using scanners {scanners}")
+        logger.info(f"Starting scan for account {account_id} - {account_name} in regions {regions} using scanners {scanners}")
         all_scan_results = defaultdict(list)
         if not regions:
             logger.warning("No regions specified")
             return
         # Iterate through each region
         for region in regions:
-            logger.debug(f"Switching region to {region} for account {account_id}")
+            logger.debug(f"Switching region to {region} for account {account_id} - {account_name}")
             try:
                 # Switch the region for the session once at the start of each region's scan
                 session = session.switch_region(region, account_id)
@@ -73,9 +74,10 @@ class AWSAccountScanner:
             all_scan_results[region] = region_scan_results
             logger.debug(f"Completed scanning for region {region}")
 
-        logger.info(f"Completed all scans for account {account_id}")
+        logger.info(f"Completed all scans for account {account_id} - {account_name}")
         return {
             "account_id": account_id,
+            "account_name": account_name,
             "regions": regions,
             "scan_results": all_scan_results,
         }

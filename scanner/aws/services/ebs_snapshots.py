@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from utils.logger import get_logger
 from config.config import DAYS_THRESHOLD
 from scanner.resource_scanner_registry import ResourceScannerRegistry
-from scanner.aws.utils.scanner_helper import extract_tag_value
+from scanner.aws.utils.scanner_helper import calculate_and_format_age_in_time_units, extract_tag_value
 from scanner.aws.cost_estimator import CostEstimator
 
 logger = get_logger(__name__)
@@ -36,28 +36,31 @@ class EbsSnapshotScanner(ResourceScannerRegistry):
                 create_time = snapshot["StartTime"]
                 size_in_gb = snapshot["VolumeSize"]
 
-                # Calculate snapshot age
-                days_since_creation = (current_time - create_time).days
-                age_in_hours = int((current_time - create_time).total_seconds() / 3600)
+                # Calculate snapshot age using the helper function
+                age = calculate_and_format_age_in_time_units(current_time, create_time)
 
                 # Estimate snapshot cost
                 cost_details = CostEstimator().calculate_cost(
                     resource_type=self.label,
                     resource_size=size_in_gb,
-                    hours_running=age_in_hours,
+                    hours_running=(current_time - create_time).total_seconds() / 3600,
                 )
 
                 # Mark snapshot as unused if older than threshold
+                days_since_creation = (current_time - create_time).days
                 if days_since_creation >= DAYS_THRESHOLD:
-                    unused_snapshots.append({
+                    tags = snapshot.get("Tags", [])
+                    snapshot_details = {
                         "ResourceName": snapshot_name or snapshot_description,
                         "ResourceId": snapshot_id,
                         "Size": size_in_gb,
                         "CreateTime": create_time,
-                        "AccountId": session.account_id,
-                        "Reason": f"Snapshot is {days_since_creation} days old, exceeding the threshold of {DAYS_THRESHOLD} days",
-                        "Cost": {self.label: cost_details}
-                    })
+                        "Reason": f"Snapshot is {age} old, exceeding the threshold of {DAYS_THRESHOLD} days",
+                        "Cost": {self.label: cost_details},
+                        "Tags": tags  # Include tags in the output
+                    }
+                    unused_snapshots.append(snapshot_details)
+
                     logger.debug(f"EBS snapshot[{snapshot_id}] cost: {cost_details}")
                     logger.info(f"EBS snapshot {snapshot_id} ({snapshot_name or snapshot_description}) is unused.")
 

@@ -200,6 +200,23 @@ class AWSSessionManager:
             logger.error(f"Error getting AWS organization accounts: {e}")
             raise
 
+    def get_account_name(account_list, account_id):
+        """
+        Retrieve the account name for a given account ID from the account list.
+
+        Args:
+            account_list (list): A list of dictionaries containing 'Id' and 'Name' keys.
+            account_id (str): The account ID to look up.
+
+        Returns:
+            str: The name of the account corresponding to the given account ID.
+                Returns None if the account ID is not found.
+        """
+        for account in account_list:
+            if account["Id"] == account_id:
+                return account["Name"]
+        return None  # Return None if the account ID is not found
+
 
     def assume_destination_role_in_all_accounts(self) -> list:
         """
@@ -324,4 +341,3 @@ class AWSSessionManager:
         logger.debug("Region switched successfully.")
         
         return new_manager
-

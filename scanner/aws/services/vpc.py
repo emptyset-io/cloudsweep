@@ -41,7 +41,7 @@ class VPCScanner(ResourceScannerRegistry):
                     continue
 
                 # Scan the VPC for unused resources
-                unused_vpc = self._analyze_vpc(ec2_client, session.account_id, vpc)
+                unused_vpc = self._analyze_vpc(ec2_client, vpc)
 
                 if unused_vpc:
                     unused_vpcs.append(unused_vpc)
@@ -53,7 +53,7 @@ class VPCScanner(ResourceScannerRegistry):
             logger.error(f"Error during VPC scan: {e}")
             return []
 
-    def _analyze_vpc(self, ec2_client, account_id, vpc_details):
+    def _analyze_vpc(self, ec2_client, vpc_details):
         """
         Analyze a specific VPC for unused resources.
         """
@@ -67,7 +67,7 @@ class VPCScanner(ResourceScannerRegistry):
             # If there are no resources, mark the VPC as unused
             if resource_count == 0:
                 logger.debug(f"VPC {vpc_id} has no resources. Marking as unused.")
-                return {"ResourceId": vpc_id, "ResourceName": vpc_name, "Resources": resource_count, "AccountId": account_id, "Reason": "No Resources"}
+                return {"ResourceId": vpc_id, "ResourceName": vpc_name, "Resources": resource_count, "Reason": "No Resources"}
 
             return None
 

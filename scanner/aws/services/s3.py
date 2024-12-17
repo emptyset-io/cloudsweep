@@ -83,7 +83,6 @@ class S3Scanner(ResourceScannerRegistry):
                         "ResourceName": bucket_name,
                         "ResourceId": bucket_arn,
                         "ObjectCount": current_object_count,
-                        "AccountId": session.account_id,
                         "Region": bucket_region,
                         "Reason": "\n".join(reasons),
                     })
