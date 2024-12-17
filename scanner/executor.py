@@ -8,10 +8,11 @@ import time
 logger = get_logger(__name__)
 
 class Executor:
-    def __init__(self, session: AWSSessionManager, scanners: list = [], regions: list = [], max_workers: int = 10):
+    def __init__(self, session: AWSSessionManager, accounts: list = [], scanners: list = [], regions: list = [], max_workers: int = 10):
         self.session = session
         self.regions = regions
         self.scanners = scanners
+        self.accounts = accounts
         self.max_workers = max_workers
         if not self.max_workers:
             self.max_workers = (os.cpu_count() - 1)
@@ -43,20 +44,27 @@ class Executor:
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = []
             for session in sessions:
+                # Here we assume that the session provides the account_id and account_name directly
                 account_id = session.get_account_id()
+                account_name = next((acc["Name"] for acc in self.accounts if str(acc["Id"]) == str(account_id)), None)
+                # If the account_id is not in the list of accounts, skip the iteration
+                if self.accounts and not any(acc["Id"] == str(account_id) for acc in self.accounts):
+                    logger.info(f"Account ID {account_id} is not in the specified accounts list. Skipping...")
+                    continue  # Skip the current iteration if the account_id is not found in the accounts list
+
                 regions = self._get_regions_for_session(session)
-                logger.info(f"Regions for scanning: {regions}")
+                logger.debug(f"Regions for scanning: {regions}")
                 for scanner_name in self.scanners:
                     if scanner_name.startswith("iam"):
                         # Only scan IAM once per account (using the 'Global' region)
                         futures.append(
-                            executor.submit(self._scan_region_scanner, scanner, session, account_id, 'Global', scanner_name)
+                            executor.submit(self._scan_region_scanner, scanner, session, account_id, account_name, 'Global', scanner_name)
                         )
                     else:
                         # Scan all regions for non-IAM resource types
                         for region in regions:
                             futures.append(
-                                executor.submit(self._scan_region_scanner, scanner, session, account_id, region, scanner_name)
+                                executor.submit(self._scan_region_scanner, scanner, session, account_id, account_name,region, scanner_name)
                             )
 
             logger.debug(f"Submitted {len(futures)} scanning tasks to executor.")
@@ -71,7 +79,6 @@ class Executor:
                         self.total_scans += 1
                 except Exception as e:
                     logger.error(f"Error during scan execution: {e}")
-
         # End time
         self.end_time = time.time()
         logger.info("Scan execution completed.")
@@ -99,19 +106,21 @@ class Executor:
             return session.get_regions()
         return [region for region in session.get_regions() if region in self.regions]
 
-    def _scan_region_scanner(self, scanner, session, account_id, region, scanner_name):
+    def _scan_region_scanner(self, scanner, session, account_id, account_name, region, scanner_name):
         """
         Perform a scan for a specific scanner in a specific region.
 
         :param scanner: AWSAccountScanner instance.
         :param session: Authenticated AWS session for the account.
         :param account_id: The ID of the AWS account.
+        :param account_name: The Name of the AWS account.
         :param region: The region to scan (for IAM, region will be 'Global').
         :param scanner_name: The scanner to execute.
         :return: Scan result for the specific scanner and region.
         """
         try:
-            result = scanner.scan_resources(session, account_id, [region], [scanner_name])
+            result = scanner.scan_resources(session, account_id, account_name, [region], [scanner_name])
+            logger.debug(f"Scanning {account_id} - {account_name}")
             return result
         except Exception as e:
             logger.error(f"Error scanning account {account_id} in region {region} with scanner {scanner_name}: {e}")

@@ -109,6 +109,7 @@ class CostEstimator:
             "DynamoDB": "AmazonDynamoDB",
             "Elastic IPs": "AmazonEC2",
             "Load Balancers": "ElasticLoadBalancing",
+            "EKS Cluster": "AmazonEKS"
         }
 
         # Attribute filters for pricing queries
@@ -120,6 +121,7 @@ class CostEstimator:
             "DynamoDB": {"productFamily": "Non-relational Database"},
             "Elastic IPs": {"productFamily": "Elastic IP"},
             "Load Balancers": {"productFamily": "Load Balancer", "location": region},
+            "EKS Cluster": {"productFamily": "Amazon Elastic Kubernetes Service" }
         }
 
         service_code = service_code_map.get(resource_type)
@@ -136,17 +138,19 @@ class CostEstimator:
             logger.warning(f"Could not calculate cost for {resource_type} of size {resource_size}.")
             return None
         
-        # For EC2, use the price per month as is
+        # Constants
+        HOURS_IN_A_DAY = 24
+        DAYS_IN_A_MONTH = 30
+        MONTHS_IN_A_YEAR = 12
+        HOURS_IN_A_MONTH = 720  # Approximate number of hours in a month (30 days)
+
         if resource_type.startswith("EBS"):
-            logger.debug(f"Price Per Gb[{resource_type}] [{price}]")
-            price_per_gb = price * resource_size
-            logger.debug(f"Price Per Gb[{resource_type}] * Volume Size: [{price_per_gb}]")
-            # EBS pricing is per month, so convert it to other units
-            price_per_hour = price_per_gb / 30 / 24  # Convert to hourly
-            price_per_day = price_per_gb / 30  # Convert to daily
-            price_per_year = price_per_gb * 12  # Yearly cost
-            lifetime_cost = price_per_gb * (hours_running  / 720) # Lifetime cost
-            price_per_month = price_per_gb  # For EBS, multiply by the resource size (volume size)
+            # EBS volumes and snapshots are charged per month
+            price_per_month = price * resource_size  # Monthly cost (per GB)
+            price_per_hour = price_per_month / HOURS_IN_A_MONTH  # Convert to hourly
+            price_per_day = price_per_hour * HOURS_IN_A_DAY  # Convert to daily
+            price_per_year = price_per_month * MONTHS_IN_A_YEAR  # Yearly cost
+            lifetime_cost = price_per_month * (hours_running / HOURS_IN_A_MONTH)  # Lifetime cost based on runtime
         else:
             # For EC2, calculate cost as usual (already per hour)
             price_per_hour = price  # Convert to hourly
@@ -155,8 +159,9 @@ class CostEstimator:
             price_per_year = price * 720 * 12  # Yearly cost
             lifetime_cost = price * hours_running  # Lifetime cost
         if resource_type == "Elastic IPs":
-            lifetime_cost = "N/A"
+            lifetime_cost = "N/A"  # Elastic IPs do not have a lifetime cost
         
+        # Return combined cost breakdown
         combined_cost = {
             "hourly": price_per_hour,
             "daily": price_per_day,
@@ -164,7 +169,8 @@ class CostEstimator:
             "yearly": price_per_year,
             "lifetime": lifetime_cost,
         }
-        
+    
+
         return combined_cost
 
 

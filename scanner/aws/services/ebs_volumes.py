@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from utils.logger import get_logger
 from config.config import DAYS_THRESHOLD
 from scanner.resource_scanner_registry import ResourceScannerRegistry
-from scanner.aws.utils.scanner_helper import extract_tag_value
+from scanner.aws.utils.scanner_helper import extract_tag_value,calculate_and_format_age_in_time_units
 from scanner.aws.cost_estimator import CostEstimator
 
 logger = get_logger(__name__)
@@ -32,10 +32,11 @@ class EbsVolumeScanner(ResourceScannerRegistry):
 
                 # Retrieve volume name using helper function
                 volume_name = extract_tag_value(volume.get("Tags"), key="Name")
-
                 # Check if the volume is unattached
                 if not volume["Attachments"]:
                     create_time = volume["CreateTime"]
+                    # Calculate snapshot age using the helper function
+                    age = calculate_and_format_age_in_time_units(current_time, create_time)
                     days_since_creation = (current_time - create_time).days
                      # Calculate age in hours
                     age_in_hours = int((current_time - create_time).total_seconds() / 3600)
@@ -53,8 +54,7 @@ class EbsVolumeScanner(ResourceScannerRegistry):
                             "State": volume["State"],
                             "Size": volume["Size"],  # Size in GiB
                             "CreateTime": create_time,
-                            "AccountId": session.account_id,
-                            "Reason": f"Volume has been unattached for {days_since_creation} days, exceeding the threshold of {DAYS_THRESHOLD} days",
+                            "Reason": f"Volume has been unattached for {age} day(s), exceeding the threshold of {DAYS_THRESHOLD} days",
                             "Cost": {self.label: cost_details}
                         })
                         logger.debug(f"EBS volume[{volume_id}] cost: {cost_details}")

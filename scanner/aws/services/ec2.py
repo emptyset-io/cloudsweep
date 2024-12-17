@@ -35,9 +35,9 @@ class Ec2Scanner(ResourceScannerRegistry):
                     launch_time = instance["LaunchTime"]
                     hours_since_launch = self._calculate_running_hours(instance["LaunchTime"])
                     logger.debug(f"Processing EC2 instance {instance_id} with state {instance_state}...")
-
+                    tags = instance.get("Tags")
                     # Retrieve instance name and class
-                    instance_name = extract_tag_value(instance.get("Tags"), key="Name")
+                    instance_name = extract_tag_value(tags, key="Name")
                     instance_class = instance.get("InstanceType", "Unknown")
 
                     # Check if the instance is stopped
@@ -58,6 +58,7 @@ class Ec2Scanner(ResourceScannerRegistry):
                                 "instance": instance,
                                 "instance_name": instance_name,
                                 "instance_class": instance_class,
+                                "tags": tags,
                                 "reasons": [reason],
                                 "session": session,
                                 "stopped_duration": stopped_duration,
@@ -84,6 +85,7 @@ class Ec2Scanner(ResourceScannerRegistry):
                                 "instance": instance,
                                 "instance_name": instance_name,
                                 "instance_class": instance_class,
+                                "tags": tags,
                                 "reasons": ["Non-running state"],
                                 "session": session,
                                 "state_change_duration": state_change_duration,
@@ -113,6 +115,7 @@ class Ec2Scanner(ResourceScannerRegistry):
                             )
                             params = {
                                 "instance": instance,
+                                "tags": tags,
                                 "instance_name": instance_name,
                                 "instance_class": instance_class,
                                 "reasons": reasons,
@@ -292,7 +295,7 @@ class Ec2Scanner(ResourceScannerRegistry):
         instance_name = params["instance_name"]
         instance_class = params["instance_class"]
         reasons = params["reasons"]
-        session = params["session"]
+        tags = params["tags"]
         hours_running = params.get("hours_running")
         ebs_details = params.get("ebs_details")
         cost_data = params.get("cost_data")
@@ -302,12 +305,12 @@ class Ec2Scanner(ResourceScannerRegistry):
             reasons = []  # Default to an empty list if 'reasons' is not iterable
 
         response = {
-            "AccountId": session.account_id,
             "ResourceId": instance["InstanceId"],
             "ResourceName": instance_name,
             "InstanceClass": instance_class,
             "State": instance["State"]["Name"],
             "Reason": ", ".join(reasons) if reasons else "No underutilization reasons",
+            "Tags": tags
         }
         if hours_running is not None:
             response["HoursRunning"] = hours_running

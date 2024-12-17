@@ -837,5 +837,8 @@
     "AmazonEC2_{\"instanceType\": \"z1d.metal\", \"productFamily\": \"Compute Instance\"}": 2.81,
     "AmazonEC2_{\"productFamily\": \"Storage\", \"volumeType\": \"General Purpose\"}": 0.12,
     "AmazonEC2_{\"productFamily\": \"Storage Snapshot\"}": 0.055,
-    "AmazonEC2_{\"productFamily\": \"Elastic IP\"}": 0.055
+    "AmazonEC2_{\"productFamily\": \"Elastic IP\"}": 0.005,
+    "AmazonEKS_{\"productFamily\": \"Amazon Elastic Kubernetes Service\"}": 0.10
+
+
 }

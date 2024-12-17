@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 def determine_metric_time_window(resource_creation_time, current_time, days_threshold):
     """
@@ -83,3 +83,34 @@ def extract_tag_value(tags, key, default="Unnamed"):
         if tag["Key"] == key:
             return tag["Value"]
     return default
+
+
+def calculate_and_format_age_in_time_units(current_time: datetime, creation_time: datetime) -> str:
+    """Calculate and format the age of a resource in years, months, weeks, days, and hours."""
+    delta = current_time - creation_time
+
+    # Calculate years, months, weeks, days, hours
+    years = delta.days // 365
+    months = (delta.days % 365) // 30
+    weeks = (delta.days % 365) // 7
+    days = delta.days % 7
+    hours = delta.seconds // 3600
+
+    # Build the reason string
+    reason_parts = []
+    
+    if years > 0:
+        reason_parts.append(f"{years} year{'s' if years > 1 else ''}")
+    if months > 0:
+        reason_parts.append(f"{months} month{'s' if months > 1 else ''}")
+    if weeks > 0:
+        reason_parts.append(f"{weeks} week{'s' if weeks > 1 else ''}")
+    if days > 0:
+        reason_parts.append(f"{days} day{'s' if days > 1 else ''}")
+    if hours > 0:
+        reason_parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
+    
+    # Join all parts into the reason string
+    reason_string = ", ".join(reason_parts) if reason_parts else "Less than an hour old"
+    
+    return reason_string

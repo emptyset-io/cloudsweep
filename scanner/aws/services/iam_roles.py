@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from utils.logger import get_logger
 from config.config import DAYS_THRESHOLD
 from scanner.resource_scanner_registry import ResourceScannerRegistry
+from scanner.aws.utils.scanner_helper import calculate_and_format_age_in_time_units
 
 logger = get_logger(__name__)
 
@@ -40,23 +41,27 @@ class IAMRoleScanner(ResourceScannerRegistry):
                     continue
 
                 # Analyze role details
-                last_used, last_used_days = self._get_role_last_used(iam_client, role_name, current_time)
+                last_used, last_used_time = self._get_role_last_used(iam_client, role_name, current_time)
 
-                # Generate usage summary
-                last_used_label = self._generate_last_used_label(last_used_days)
+                # Calculate formatted age string
+                age_string = (
+                    calculate_and_format_age_in_time_units(current_time, last_used_time)
+                    if last_used_time
+                    else "Never used"
+                )
+
                 attached_policies, inline_policies, instance_profiles = self._get_role_policies(iam_client, role_name)
 
                 # Determine reasons for unused status
-                reasons = self._determine_unused_reasons(last_used_days, attached_policies, inline_policies, instance_profiles)
+                reasons = self._determine_unused_reasons(last_used_time, attached_policies, inline_policies, instance_profiles, age_string)
 
                 if reasons:
                     unused_roles.append({
                         "ResourceName": role_name,
                         "ResourceId": role_arn,
-                        "LastUsed": last_used_label,
+                        "LastUsed": age_string,
                         "InstanceProfiles": len(instance_profiles),
                         "PoliciesAttached": len(attached_policies) + len(inline_policies),
-                        "AccountId": session.account_id,
                         "Reason": "\n".join(reasons),
                     })
                     logger.debug(f"Unused role identified: {role_name} - Reasons: {reasons}")
@@ -73,15 +78,10 @@ class IAMRoleScanner(ResourceScannerRegistry):
         return "service-role" in role_arn or "aws-reserved" in role_arn
 
     def _get_role_last_used(self, iam_client, role_name, current_time):
-        """Retrieve the last used time and calculate days since last used."""
+        """Retrieve the last used time and calculate time since last used."""
         role_details = iam_client.get_role(RoleName=role_name)["Role"]
         last_used = role_details.get("RoleLastUsed", {}).get("LastUsedDate")
-        last_used_days = (current_time - last_used).days if last_used else -1
-        return last_used, last_used_days
-
-    def _generate_last_used_label(self, last_used_days):
-        """Generate the label for the last used time."""
-        return "Never" if last_used_days == -1 else f"{last_used_days} days ago"
+        return last_used, last_used if last_used else None
 
     def _get_role_policies(self, iam_client, role_name):
         """Retrieve the attached policies, inline policies, and instance profiles for the role."""
@@ -90,13 +90,13 @@ class IAMRoleScanner(ResourceScannerRegistry):
         instance_profiles = iam_client.list_instance_profiles_for_role(RoleName=role_name).get("InstanceProfiles", [])
         return attached_policies, inline_policies, instance_profiles
 
-    def _determine_unused_reasons(self, last_used_days, attached_policies, inline_policies, instance_profiles):
+    def _determine_unused_reasons(self, last_used_time, attached_policies, inline_policies, instance_profiles, age_string):
         """Determine the reasons the role is considered unused."""
         reasons = []
-        if last_used_days == -1:
+        if not last_used_time:
             reasons.append("Role has never been used.")
-        elif last_used_days > DAYS_THRESHOLD:
-            reasons.append(f"Role has not been used in the last {DAYS_THRESHOLD} days ({last_used_days} days ago).")
+        elif (datetime.now(timezone.utc) - last_used_time).days > DAYS_THRESHOLD:
+            reasons.append(f"Role has not been used for {age_string}.")
         if not attached_policies and not inline_policies and not instance_profiles:
             reasons.append("No attached policies or instance profiles.")
         return reasons

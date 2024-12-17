@@ -76,7 +76,6 @@ class RDSScanner(ResourceScannerRegistry):
                         "CPUUsage": cpu_usage_total,
                         "ReadIOPS": read_iops_total,
                         "WriteIOPS": write_iops_total,
-                        "AccountId": session.account_id,
                         "Reason": reason
                     })
                     logger.debug(f"RDS instance {instance_id} is unused or underutilized: {reason}")

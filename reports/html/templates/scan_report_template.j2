@@ -16,7 +16,7 @@
             <table class="accounts-table">
                 <thead>
                     <tr>
-                        <th>Account ID</th>
+                        <th>Account</th>
                         <th>Regions</th>
                     </tr>
                 </thead>
@@ -126,7 +126,7 @@
             <table id="scan-table">
                 <thead>
                     <tr>
-                        <th onclick="sortTable(0)">Account ID <span class="sort-icon">↕</span></th>
+                        <th onclick="sortTable(0)">Account <span class="sort-icon">↕</span></th>
                         <th onclick="sortTable(1)">Region <span class="sort-icon">↕</span></th>
                         <th onclick="sortTable(2)">Resource Type <span class="sort-icon">↕</span></th>
                         <th onclick="sortTable(3)">Name <span class="sort-icon">↕</span></th>
@@ -136,9 +136,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for resource in resources |sort(attribute='account_id') %}
+                    {% for resource in resources |sort(attribute='account_id_name') %}
                     <tr>
-                        <td>{{ resource.account_id }}</td>
+                        <td>{{ resource.account_id_name }}</td>
                         <td>{{ resource.region }}</td>
                         <td>{{ resource.resource_type }}</td>
                         <td>{{ resource.name }}</td>

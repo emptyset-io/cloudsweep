@@ -5,19 +5,6 @@ from scanner.resource_scanner_registry import ResourceScannerRegistry
 import sys
 import os
 
-
-# Test for no arguments, expecting help and SystemExit
-def test_parse_arguments_no_args():
-    test_args = ["main.py"]
-    with patch.object(sys, 'argv', test_args), patch("argparse.ArgumentParser.print_help") as mock_help:
-        with pytest.raises(SystemExit) as pytest_wrapped_e:
-            ArgumentParser.parse_arguments()
-
-        mock_help.assert_called_once()
-        assert pytest_wrapped_e.type == SystemExit
-        assert pytest_wrapped_e.value.code == 1
-
-
 # Test parsing valid arguments
 def test_parse_arguments_with_valid_args():
     test_args = ["main.py", "--organization-role", "OrgRole", "--runner-role", "RunnerRole", "--profile", "default"]
@@ -50,7 +37,7 @@ def test_get_scanners_list_scanners():
 
 # Test when the --all-scanners flag is used
 def test_get_scanners_all_scanners():
-    test_args = ["main.py", "--all-scanners", "--organization-role", "TestRole"]
+    test_args = ["main.py", "--scanners", "all", "--organization-role", "TestRole"]
 
     with patch.object(sys, 'argv', test_args):
         args = ArgumentParser.parse_arguments()

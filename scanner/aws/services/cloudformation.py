@@ -59,7 +59,6 @@ class CloudFormationScanner(ResourceScannerRegistry):
                             "ResourceId": resource_id,
                             "ResourceType": resource_type,
                             "Reason": reason,
-                            "AccountId": session.account_id,
                         })
 
             logger.info(f"Found {len(unused_resources)} unused CloudFormation resources.")

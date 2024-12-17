@@ -47,7 +47,6 @@ class SecurityGroupScanner(ResourceScannerRegistry):
                     unused_groups.append({
                         "ResourceName": resource_name,
                         "ResourceId": sg["GroupId"],
-                        "AccountId": session.account_id,
                         "Reason": sg["Reason"]
                     })
 
