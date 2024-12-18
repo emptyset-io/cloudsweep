@@ -153,6 +153,7 @@ def test_get_regions(mock_boto3_session):
     
     # Create the AWSSessionManager instance
     session_manager = AWSSessionManager(profile_name="test-profile")
+    session_manager._session = mock_session
     
     # Act: Call get_regions (it will use mock_session internally)
     regions = session_manager.get_regions()
