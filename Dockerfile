@@ -4,13 +4,20 @@ FROM python:3.13-slim AS build
 # Set working directory
 WORKDIR /app
 
-# Install dependencies required for building the virtual environment
+# Install dependencies required for building the virtual environment and locale settings
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libssl-dev \
     libffi-dev \
     python3-dev \
+    locales \
     && rm -rf /var/lib/apt/lists/*
+
+# Generate and set the locale (example: en_US.UTF-8)
+RUN locale-gen en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
 
 # Copy the requirements.txt file into the container
 COPY requirements.txt .
@@ -26,6 +33,16 @@ FROM python:3.13-slim AS final
 
 # Set working directory
 WORKDIR /app
+
+# Install locales in the final stage and set locale environment variables
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    locales \
+    && locale-gen en_US.UTF-8 && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
 
 # Copy virtual environment from the build stage
 COPY --from=build /app/venv /app/venv
