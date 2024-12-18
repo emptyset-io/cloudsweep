@@ -30,13 +30,12 @@ class AWSSessionManager:
         self._organization_session = None
         self.account_id = None
 
-
-        self.regions = self.get_regions()
-        logger.debug(f"Regions: {self.regions}")
-
         if self.organization_role:
             logger.debug(f"Automatically assuming organization role {self.organization_role}")
-            self._organization_session = self.assume_role(self.organization_role, self.get_account_id())
+            self._organization_session = self.assume_organization_role()
+        if self.runner_role:    
+            self.regions = self.get_regions()
+            logger.debug(f"Regions: {self.regions}")            
 
     def get_session(self) -> boto3.Session:
         """
@@ -71,7 +70,7 @@ class AWSSessionManager:
         try:
             sts_client = session.client('sts')
             response = sts_client.get_caller_identity()
-            logger.info(f"Retrieved Account ID: {response['Account']}")
+            logger.debug(f"Retrieved Account ID: {response['Account']}")
             self.account_id = response['Account']
             return response['Account']
         except ClientError as e:
@@ -96,7 +95,33 @@ class AWSSessionManager:
         except Exception as e:
             logger.error(f"Error retrieving regions: {e}")
             raise
+    def assume_organization_role(self) -> boto3.Session:
+        """
+        Assumes the organization role and returns a boto3 session.
+        """
+        try:
+            logger.debug("Assuming organization role.")
+            sts_client = boto3.client('sts')
+            current_account_id = sts_client.get_caller_identity()['Account']
+            logger.debug(f"Current account ID: {current_account_id}")
 
+            role_arn = f"arn:aws:iam::{current_account_id}:role/{self.organization_role}"
+            response = sts_client.assume_role(
+                RoleArn=role_arn,
+                RoleSessionName="OrganizationAccessSession"
+            )
+
+            credentials = response['Credentials']
+            logger.debug(f"Successfully assumed organization role: {role_arn}")
+
+            return boto3.Session(
+                aws_access_key_id=credentials['AccessKeyId'],
+                aws_secret_access_key=credentials['SecretAccessKey'],
+                aws_session_token=credentials['SessionToken']
+            )
+        except ClientError as e:
+            logger.error(f"Error assuming organization role: {e.response['Error']['Message']}")
+            raise
     def assume_role(self, role_name: str, account_id: str, session_name="AWSScannerSession", session: "AWSSessionManager" = None) -> "AWSSessionManager":
         """
         Assume a role in a specific account and return a new AWSSessionManager with the assumed role credentials.
@@ -112,7 +137,7 @@ class AWSSessionManager:
         """
         try:
             if session:
-                sts_client = session.get_session().client('sts')
+                sts_client = self._organization_session.client('sts')
             else:
                 sts_client = self.get_client("sts")
 
@@ -150,7 +175,10 @@ class AWSSessionManager:
             list[str]: List of region names.
         """
         logger.debug(f"Getting regions for assumed session: {self._session}")
-        ec2_client = self.get_client("ec2")
+        if not self._session:
+            ec2_client = self._organization_session.client("ec2")
+        else:
+            ec2_client = self._session.client('ec2')
         response = ec2_client.describe_regions()
         regions = [region['RegionName'] for region in response['Regions']]
         logger.debug(f"Regions retrieved: {regions}")
@@ -179,7 +207,7 @@ class AWSSessionManager:
                     session_name="OrganizationSession"
                 )
 
-            org_client = self._organization_session.get_session().client("organizations")
+            org_client = self._organization_session.client("organizations")
 
             # Retrieve accounts with pagination
             accounts = []
@@ -250,7 +278,7 @@ class AWSSessionManager:
                         if assumed_session:
                             assumed_sessions.append(assumed_session)
                     except Exception as e:
-                        logger.error(f"Error assuming role for an account: {e}")
+                        logger.exception(f"Error assuming role for an account: {e}")
             
             return assumed_sessions
 

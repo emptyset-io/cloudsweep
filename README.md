@@ -39,6 +39,63 @@ The report data is randomized seed data, actual metadata in the Details column g
 ### Permissions Setup
 Both the `organization_role` and `runner_role` must have appropriate permissions for resource scanning across all accounts and regions within your AWS Organization.
 
+#### Example organization_role Permissions
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:iam::<account1_id>:role/<runner_role>",
+                "arn:aws:iam::<account2_id>:role/<runner_role>",
+                "arn:aws:iam::<account3_id>:role/<runner_role>",
+            ],
+            "Sid": ""
+        },
+        {
+            "Action": [
+                "ses:SendRawEmail",
+                "ses:SendEmail",
+                "ec2:DescribeRegions",
+                "organizations:ListPolicies",
+                "organizations:ListOrganizationalUnitsForParent",
+                "organizations:ListChildren",
+                "organizations:ListAccounts",
+                "organizations:DescribePolicy",
+                "organizations:DescribeOrganizationalUnit",
+                "organizations:DescribeAccount"
+            ],
+            "Effect": "Allow",
+            "Resource": "*",
+            "Sid": ""
+        }
+    ]
+}
+```
+
+#### Example runner_role Permissions
+The runner_role requires the canned ReadOnlyAccess permission policy associated to it with a trust relationship from the `organization_role`
+
+Example Trust Relationship Policy
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::<organization_account_id>:role/<organization_role>"
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+}
+```
+
 ## Installation & Setup
 
 ### 1. Clone the Repository

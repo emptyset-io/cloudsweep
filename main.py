@@ -26,9 +26,7 @@ def parse_and_prepare_args():
     scanners = ArgumentParser.get_scanners(args)
     regions = ArgumentParser.get_regions(args)
 
-    logger.debug(f"Using AWS profile: {args.profile}")
     session_manager = AWSSessionManager(
-        profile_name=args.profile,
         organization_role=args.organization_role,
         runner_role=args.runner_role,
     )

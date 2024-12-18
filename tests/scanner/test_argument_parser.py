@@ -7,12 +7,11 @@ import os
 
 # Test parsing valid arguments
 def test_parse_arguments_with_valid_args():
-    test_args = ["main.py", "--organization-role", "OrgRole", "--runner-role", "RunnerRole", "--profile", "default"]
+    test_args = ["main.py", "--organization-role", "OrgRole", "--runner-role", "RunnerRole"]
     with patch.object(sys, 'argv', test_args):
         args = ArgumentParser.parse_arguments()
         assert args.organization_role == "OrgRole"
         assert args.runner_role == "RunnerRole"
-        assert args.profile == "default"
 
 
 # Test the list scanners functionality
