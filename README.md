@@ -125,7 +125,6 @@ Cloud Sweep scans AWS resources across multiple profiles and regions. Use the co
 
 - `--organization-role`: Specify the IAM role for querying the AWS Organization.
 - `--runner-role`: Specify the IAM role for scanning accounts within the AWS Organization.
-- `--profile`: AWS profile to use. Defaults to the profile specified in `~/.aws/credentials`.
 - `--list-scanners`: List available scanners without performing a scan.
 - `--all-scanners`: Run all available scanners.
 - `--scanners`: A comma-separated list of scanners to run (e.g., `ec2,elb,iam`).
@@ -143,7 +142,6 @@ Below are the environment variables you can use to configure the AWS Scanner CLI
 
 | **Environment Variable**       | **Description**                                                       | **Default Value**       |
 |---------------------------------|-----------------------------------------------------------------------|-------------------------|
-| `CS_AWS_PROFILE`               | The AWS profile to use for authentication.                           | (No default, must be set if required) |
 | `CS_ORGANIZATION_ROLE`         | The IAM Role Name used to query the organization.                    | (No default, must be set) |
 | `CS_RUNNER_ROLE`               | The IAM Role Name for scanning organization accounts.                | (No default, must be set) |
 | `CS_SCANNERS`                  | A comma-separated list of scanners to use (e.g., `scanner1,scanner2`). If set to `"all"`, all available scanners are used. | `all`                   |
@@ -156,7 +154,6 @@ Below are the environment variables you can use to configure the AWS Scanner CLI
 To simplify configuration, you can create a `.env` file in your project directory. Below is an example `.env` file that sets the necessary environment variables:
 
 ```
-CS_AWS_PROFILE=default
 CS_ORGANIZATION_ROLE=my-organization-role
 CS_RUNNER_ROLE=my-runner-role
 CS_SCANNERS=  # If left empty, defaults to 'all' (i.e., use all scanners)
@@ -173,39 +170,33 @@ CS_DAYS_THRESHOLD=90  # Default value is 90 days
 python main.py --list-scanners
 ```
 
-#### 2. Scan with Specific Profile and Regions
+#### 2. Scan All Available Scanners
 
 ```
-python main.py --profile profile1 --regions us-west-2,us-east-1 --organization-role <organization_role> --runner-role <runner_role>
+python main.py --all-scanners --organization-role <organization_role> --runner-role <runner_role>
 ```
 
-#### 3. Scan All Available Scanners
+#### 3. Scan Specific Scanners (e.g., EC2, IAM)
 
 ```
-python main.py --all-scanners --organization-role <organization_role> --runner-role <runner_role> --profile <profile>
+python main.py --scanners ec2,iam --organization-role <organization_role> --runner-role <runner_role>
 ```
 
-#### 4. Scan Specific Scanners (e.g., EC2, IAM)
-
-```
-python main.py --scanners ec2,iam --organization-role <organization_role> --runner-role <runner_role> --profile <profile>
-```
-
-#### 5. Scan All Regions
+#### 4. Scan All Regions
 
 ```
 python main.py --all-regions --profile <profile> --organization-role <organization_role> --runner-role <runner_role>
 ```
 
-#### 6. Scan with Custom Number of Workers
+#### 5. Scan with Custom Number of Workers
 
 ```
-python main.py --max-workers 10 --organization-role <organization_role> --runner-role <runner_role> --profile <profile>
+python main.py --max-workers 10 --organization-role <organization_role> --runner-role <runner_role>
 ```
 
 ## How It Works
 
-- **Profile**: The profile is used to create the inital boto3 session. The default profile is used if none is specified. The boto3 session assumes role into an `organization_role` and from there lists accounts in the organization to scan.  The boto3 session then assumes role into each of the sub accounts via the `scanner_role`, returninig a list of used regions for each account to be passed off to the scanner.
+- **Roles** The boto3 session assumes role into an `organization_role` and from there lists accounts in the organization to scan.  The boto3 session then assumes role into each of the sub accounts via the `scanner_role`, returninig a list of used regions for each account to be passed off to the scanner.
 - **Regions**: If no regions are specified, Cloud Sweep defaults to scanning all AWS regions.
 - **Scanners**: You can specify which scanners to run, or use `--all-scanners` to run them all.
 - **Max Workers**: Determines how many concurrent scans are performed. Increasing workers speeds up the process.

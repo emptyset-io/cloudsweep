@@ -103,7 +103,6 @@ def extract_scan_data(scan_results):
         account_name = account_data.get("account_name", "Unknown Account")
         account_id_name = f"{account_id} - {account_name}"  # Combine account_id and account_name
         regions = [r for r in account_data.get("regions", []) if r != "Global"]
-        logger.info(f"Account ID: {account_id_name}, Regions: {regions}")
         scan_data = account_data.get("scan_results", {})
 
         if account_id_name not in accounts_and_regions:
@@ -187,7 +186,6 @@ def generate_html_report(scan_results, start_time, scan_metrics, filename="scan_
     styles = load_asset(os.path.join(asset_dir, 'styles.css'))
     scripts = load_asset(os.path.join(asset_dir, 'scripts.js'))
     combined_costs = calculate_totals(totals)
-    logger.critical(accounts_and_regions)
     context = {
         "accounts_and_regions": accounts_and_regions,
         "report_generated_at": report_generated_at,
