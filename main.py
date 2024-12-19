@@ -72,23 +72,40 @@ def extract_account_details_from_scan_results(scan_results):
     logger.critical(account_details)
     return account_details
 
-
 def upload_report_to_confluence(report_filename, account_details):
     """Uploads the generated report to Confluence."""
     if report_filename:
+        confluence_url = os.getenv("CS_ATLASSIAN_BASE_URL")
+        username = os.getenv("CS_ATLASSIAN_USERNAME")
+        api_token = os.getenv("CS_ATLASSIAN_API_TOKEN")
+        parent_page_title = int(os.getenv("CS_CONFLUENCE_PARENT_PAGE"))
+        space_key = os.getenv("CS_CONFLUENCE_SPACE_KEY")
+
         for account_id, account_name in account_details.items():
+            logger.critical(account_id)
+            logger.critical(account_name)
             confluence_uploader = ConfluenceReportUploader(
-                confluence_url=os.getenv("CS_CONFLUENCE_URL"),
-                username=os.getenv("CS_CONFLUENCE_USERNAME"),
-                api_token=os.getenv("CS_CONFLUENCE_API_TOKEN"),
-                parent_page_title="Parent Page Title"
+                confluence_url=confluence_url,
+                username=username,
+                api_token=api_token,
+                parent_page_title=parent_page_title
             )
             confluence_uploader.upload_report(
-                space_key=os.getenv("CS_CONFLUENCE_SPACE_KEY"),
-                page_title=f"Cloudsweep Scan Results - {account_name}",
+                space_key=space_key,
+                page_title=f"{account_name}",
                 report_file_path=report_filename,
                 account_id=account_id
             )
+
+
+def handle_confluence_upload(args, report_filename, account_details):
+    """Handles uploading the report to Confluence based on the provided argument."""
+    if args.upload_confluence:
+        logger.info("Uploading report to Confluence...")
+        upload_report_to_confluence(report_filename, account_details)
+        logger.info("Report uploaded successfully!")
+    else:
+        logger.info("Confluence upload skipped.")
 
 def main():
     """Main entry point of the script."""
@@ -109,9 +126,9 @@ def main():
         # Generate the report
         report_filename = generate_report(scan_results, scan_metrics)
 
-        # # Extract account details from scan_results and upload the report to Confluence
-        # account_details = extract_account_details_from_scan_results(scan_results)
-        # upload_report_to_confluence(report_filename, scan_results)
+        if report_filename:
+            account_details = extract_account_details_from_scan_results(scan_results)
+            handle_confluence_upload(args, report_filename, account_details)
 
     except Exception as e:
         logger.exception(f"An error occurred: {e}")

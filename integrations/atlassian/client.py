@@ -1,54 +1,52 @@
-import requests
+from atlassian import Confluence
 import os
 
 class AtlassianClient:
     """
-    Generic Atlassian client for handling authentication and requests.
+    A client for interacting with Atlassian APIs (e.g., Confluence, Jira).
+    Responsible for authentication and setting up the connection to Atlassian services.
     """
     def __init__(self, base_url=None, username=None, api_token=None):
         """
         Initialize the Atlassian client.
-        
+
         :param base_url: Base URL for Atlassian service (e.g., Confluence or Jira).
-        :param username: Username for authentication.
+        :param username: Email address for authentication (not username or userkey).
         :param api_token: API token for authentication.
         """
         # Use environment variables if parameters are not provided
         self.base_url = base_url or os.getenv("CS_ATLASSIAN_BASE_URL")
-        self.auth = (username or os.getenv("CS_ATLASSIAN_USERNAME"), 
-                     api_token or os.getenv("CS_ATLASSIAN_API_TOKEN"))
-        self.headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        }
-        if not all(self.auth) or not self.base_url:
-            raise ValueError("Missing required Atlassian credentials or base URL.")
-
-
-    def request(self, method, endpoint, **kwargs):
-        """
-        Perform a request to the Atlassian API.
+        self.username = username or os.getenv("CS_ATLASSIAN_USERNAME")  # Email address
+        self.api_token = api_token or os.getenv("CS_ATLASSIAN_API_TOKEN")
         
-        :param method: HTTP method (GET, POST, PUT, DELETE).
-        :param endpoint: API endpoint (relative to base URL).
-        :param kwargs: Additional arguments for the request (e.g., `json`, `params`).
-        :return: Response object.
-        """
-        url = f"{self.base_url}{endpoint}"
-        response = requests.request(method, url, auth=self.auth, headers=self.headers, **kwargs)
-        response.raise_for_status()  # Raise an error for HTTP 4xx/5xx responses
-        return response.json()
-    
+        if not self.username or not self.api_token or not self.base_url:
+            raise ValueError("Missing required Atlassian credentials or base URL.")
+        
+        # Initialize the Confluence client from the atlassian-python-api
+        self.client = Confluence(
+            url=self.base_url,
+            username=self.username,
+            password=self.api_token  # API token used as password
+        )
+
     def authenticate(self):
         """
-        Test the authentication by fetching user details.
-        
-        :return: True if authentication is successful.
+        Test the authentication by checking if the user exists or retrieving user info.
+
+        :return: True if authentication is successful, else False.
         """
         try:
-            response = self.request("GET", "/rest/api/user", params={"username": self.auth[0]})
-            return response is not None
-        except requests.HTTPError as e:
+            # Attempt to fetch the current user's information from Confluence
+            user_info = self.client.get_user_details_by_username(self.username)
+            return user_info is not None
+        except Exception as e:
             print(f"Authentication failed: {e}")
             return False
+
+    def get_client(self):
+        """
+        Return the Confluence client object for use in other modules.
         
+        :return: The Confluence client instance.
+        """
+        return self.client

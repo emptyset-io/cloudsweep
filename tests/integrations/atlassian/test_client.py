@@ -1,121 +1,92 @@
 import pytest
-import responses
+from unittest.mock import MagicMock, patch
+from integrations.atlassian.client import AtlassianClient  # Replace with your actual module
 import os
-from integrations.atlassian.client import AtlassianClient
 
-# Default environment variable values for testing
-DEFAULT_BASE_URL = "https://example.atlassian.net"
-DEFAULT_USERNAME = "test_user"
-DEFAULT_API_TOKEN = "test_token"
 
-@pytest.fixture
-def set_env_vars(monkeypatch):
-    """Fixture to set up environment variables."""
-    monkeypatch.setenv("CS_ATLASSIAN_BASE_URL", DEFAULT_BASE_URL)
-    monkeypatch.setenv("CS_ATLASSIAN_USERNAME", DEFAULT_USERNAME)
-    monkeypatch.setenv("CS_ATLASSIAN_API_TOKEN", DEFAULT_API_TOKEN)
+# Test: Initialization with missing credentials
+def test_atlassian_client_init_missing_credentials():
+    with patch.dict(os.environ, {}, clear=True):  # Clear environment variables
+        with pytest.raises(ValueError, match="Missing required Atlassian credentials or base URL."):
+            AtlassianClient()  # Should raise ValueError since no credentials are provided
 
-@pytest.fixture
-def client(set_env_vars):
-    """Fixture for initializing the AtlassianClient using environment variables."""
-    base_url = os.getenv("CS_ATLASSIAN_BASE_URL")
-    username = os.getenv("CS_ATLASSIAN_USERNAME")
-    api_token = os.getenv("CS_ATLASSIAN_API_TOKEN")
-    return AtlassianClient(base_url=base_url, username=username, api_token=api_token)
 
-@responses.activate
-def test_authenticate_success(client):
-    """Test successful authentication."""
-    endpoint = "/rest/api/user"
-    responses.add(
-        responses.GET,
-        f"{DEFAULT_BASE_URL}{endpoint}",
-        json={"username": DEFAULT_USERNAME},
-        status=200
-    )
+# Test: Initialization with provided credentials
+def test_atlassian_client_init_with_credentials():
+    with patch.dict(os.environ, {
+        "CS_ATLASSIAN_BASE_URL": "https://example.atlassian.net",
+        "CS_ATLASSIAN_USERNAME": "user@example.com",
+        "CS_ATLASSIAN_API_TOKEN": "mock_api_token"
+    }):
+        client = AtlassianClient()
+        assert client.base_url == "https://example.atlassian.net"
+        assert client.username == "user@example.com"
+        assert client.api_token == "mock_api_token"
+        assert client.client is not None  # The Confluence client should be initialized
 
-    assert client.authenticate() is True
 
-@responses.activate
-def test_authenticate_failure(client):
-    """Test failed authentication."""
-    endpoint = "/rest/api/user"
-    responses.add(
-        responses.GET,
-        f"{DEFAULT_BASE_URL}{endpoint}",
-        status=401
-    )
+# Test: Initialization with environment variables when no parameters are passed
+def test_atlassian_client_init_with_env_vars():
+    with patch.dict(os.environ, {
+        "CS_ATLASSIAN_BASE_URL": "https://example.atlassian.net",
+        "CS_ATLASSIAN_USERNAME": "user@example.com",
+        "CS_ATLASSIAN_API_TOKEN": "mock_api_token"
+    }):
+        client = AtlassianClient(base_url=None, username=None, api_token=None)
+        assert client.base_url == "https://example.atlassian.net"
+        assert client.username == "user@example.com"
+        assert client.api_token == "mock_api_token"
 
-    assert client.authenticate() is False
+# Test: Authentication - Failed authentication due to missing user
+def test_authenticate_failure():
+    mock_confluence_client = MagicMock()
+    mock_confluence_client.get_user.side_effect = Exception("User not found")
 
-@responses.activate
-def test_request_success(client):
-    """Test a successful request."""
-    endpoint = "/rest/api/example"
-    responses.add(
-        responses.GET,
-        f"{DEFAULT_BASE_URL}{endpoint}",
-        json={"key": "value"},
-        status=200
-    )
-
-    response = client.request("GET", endpoint)
-    assert response == {"key": "value"}
-
-@responses.activate
-def test_request_failure(client):
-    """Test a failed request."""
-    endpoint = "/rest/api/example"
-    responses.add(
-        responses.GET,
-        f"{DEFAULT_BASE_URL}{endpoint}",
-        status=404
-    )
-
-    with pytest.raises(Exception):
-        client.request("GET", endpoint)
-
-@responses.activate
-def test_request_with_params(client):
-    """Test a request with query parameters."""
-    endpoint = "/rest/api/example"
-    params = {"key": "value"}
-    responses.add(
-        responses.GET,
-        f"{DEFAULT_BASE_URL}{endpoint}",
-        match=[responses.matchers.query_param_matcher(params)],
-        json={"result": "success"},
-        status=200
-    )
-
-    response = client.request("GET", endpoint, params=params)
-    assert response == {"result": "success"}
-
-@responses.activate
-def test_request_with_body(client):
-    """Test a POST request with a body."""
-    endpoint = "/rest/api/example"
-    payload = {"key": "value"}
-    responses.add(
-        responses.POST,
-        f"{DEFAULT_BASE_URL}{endpoint}",
-        match=[responses.matchers.json_params_matcher(payload)],
-        json={"result": "created"},
-        status=201
-    )
-
-    response = client.request("POST", endpoint, json=payload)
-    assert response == {"result": "created"}
-
-def test_missing_env_vars(monkeypatch):
-    """Test initialization with missing environment variables."""
-    monkeypatch.delenv("CS_ATLASSIAN_BASE_URL", raising=False)
-    monkeypatch.delenv("CS_ATLASSIAN_USERNAME", raising=False)
-    monkeypatch.delenv("CS_ATLASSIAN_API_TOKEN", raising=False)
-
-    with pytest.raises(ValueError, match="Missing required Atlassian credentials or base URL."):
-        AtlassianClient(
-            base_url=os.getenv("CS_ATLASSIAN_BASE_URL"),
-            username=os.getenv("CS_ATLASSIAN_USERNAME"),
-            api_token=os.getenv("CS_ATLASSIAN_API_TOKEN")
+    with patch("atlassian.Confluence", return_value=mock_confluence_client):
+        client = AtlassianClient(
+            base_url="https://example.atlassian.net",
+            username="user@example.com",
+            api_token="mock_api_token"
         )
+
+        assert client.authenticate() is False  # Should return False as authentication failed
+
+# Test: Authentication - Successful authentication
+def test_authenticate_success():
+    mock_confluence_client = MagicMock()
+
+    # Correct method to mock is `get_user_details_by_username`
+    mock_confluence_client.get_user_details_by_username.return_value = {"username": "user@example.com"}
+
+    # Patch where the `Confluence` class is used in the `AtlassianClient` class
+    with patch("integrations.atlassian.client.Confluence", return_value=mock_confluence_client):
+        client = AtlassianClient(
+            base_url="https://example.atlassian.net",
+            username="user@example.com",
+            api_token="mock_api_token"
+        )
+
+        # Now authenticate should return True as we're mocking the authentication success
+        assert client.authenticate() is True  # Should return True as authentication is successful
+# Test: get_client - Return the Confluence client instance
+def test_get_client():
+    mock_confluence_client = MagicMock()
+    
+    with patch("integrations.atlassian.client.Confluence", return_value=mock_confluence_client):
+        client = AtlassianClient(
+            base_url="https://example.atlassian.net",
+            username="user@example.com",
+            api_token="mock_api_token"
+        )
+    
+        result = client.get_client()
+    
+        # Ensure that the get_client method returns the mock client, not the real instance
+        assert result is mock_confluence_client  # Should return the mocked Confluence client
+# Test: Initialization with missing environment variables
+def test_atlassian_client_init_with_missing_env_vars():
+    with patch.dict(os.environ, {}, clear=True):  # Ensure the env vars are missing
+        with pytest.raises(ValueError, match="Missing required Atlassian credentials or base URL."):
+            AtlassianClient()  # Should raise ValueError when credentials are not available
+
+

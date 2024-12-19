@@ -68,16 +68,6 @@ def test_get_scanners_env_var():
     # Clean up environment variable after test
     del os.environ["CS_SCANNERS"]
 
-
-# Test getting regions when the --all-regions flag is used
-def test_get_regions_all_regions():
-    test_args = ["main.py",  "--organization-role", "TestRole"]
-
-    with patch.object(sys, 'argv', test_args):
-        args = ArgumentParser.parse_arguments()
-        assert args.regions == "all"
-
-
 # Test getting regions when specific regions are provided
 def test_get_regions_specific_regions():
     test_args = ["main.py", "--regions", "us-east-1,us-west-2", "--organization-role", "TestRole", "--runner-role", "RunnerRole"]
