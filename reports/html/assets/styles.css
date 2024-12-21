@@ -87,6 +87,12 @@ tr:nth-child(even) {
     cursor: pointer;
 }
 
+#resource-type-counts td:nth-child(2) {
+    color: #FF7F32; /* orange */
+    cursor: pointer;
+}
+
+
 tr:hover {
     background-color: #333333; /* Highlight on hover */
 }
@@ -145,36 +151,47 @@ button.export-btn:hover {
     position: relative;
     padding-right: 30px; /* Space for the 'X' icon */
     max-width: 80%; /* Make the input take up the full width of its container */
+    background-color: #e06721;
 }
 
 #clear-search {
-    position: absolute;
-    top: 50%;     /* Vertically center the 'X' within the input field */
-    transform: translateY(-50%); /* Adjust for perfect vertical centering */
-    cursor: pointer;
-    display: none; /* Initially hidden */
-    font-size: 18px;
-}
-
-/* Toggle Details Button */
-#clear-search {
-    position: absolute;
-    top: 50%;     /* Vertically center the 'X' within the input field */
-    transform: translateY(-50%); /* Adjust for perfect vertical centering */
-    cursor: pointer;
-    display: none; /* Initially hidden */
+    padding: 10px 15px;
     font-size: 14px;
     color: #ffffff;
     background-color: #FF7F32;
-    border-radius: 4px; 
-    padding: 8px 12px;
-    white-space: nowrap;
-    margin-left: 10px;
+    display: none; /* Initially hidden */
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#clear-search:hover {
+    background-color: #e06721;
+}
+/* Toggle Details Button */
+.toggle-button {
+    display: flex;
+    justify-content: flex-end;  /* Aligns the button to the right */
+    align-items: center;
+    gap: 0.3rem;
+    width: 100%;  /* Make the button take up full width of the td */
+    border: none;
+    background: none;
+    color: #FF7F32; /* orange for interactivity */
+    cursor: pointer;
+    font-size: 0.9rem;
 }
 
 .toggle-button:hover {
     background: none;
     color: #e06721; /* Darker orange on hover */
+}
+
+tr:hover {
+    background-color: #333333;
+    transform: scale(1.008);
+    transition: transform 0.2s ease;
 }
 
 /* Set up the transition for rotating the icon */

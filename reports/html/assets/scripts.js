@@ -39,11 +39,14 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function scrollToUnusedResources(event, resourceType) {
-    event.preventDefault();
+    event.preventDefault();  // Prevent the default anchor behavior
 
+    // Find the "Unused Resources" section and scroll to it
     const section = document.getElementById('unused-resources');
     if (section) {
         section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        console.error("Element with id 'unused-resources' not found.");
     }
 }
 
@@ -118,7 +121,6 @@ function sortTable(columnIndex) {
     rows.forEach((row) => table.appendChild(row));
 }
 
-
 // Toggle details visibility
 function toggleDetails(button, detailsId) {
     const details = document.getElementById(detailsId);
@@ -139,7 +141,6 @@ function toggleDetails(button, detailsId) {
     // Toggle the expanded class to rotate the icon
     button.classList.toggle('expanded');
 }
-
 
 // Export table data to CSV
 function exportTableToCSV(filename) {
@@ -204,6 +205,7 @@ window.onload = function() {
     displayLocalReportTime();
 };
 
+// Add tooltips for "N/A"
 function addTooltipsForNA() {
     // Find all text nodes containing "N/A"
     const elements = document.querySelectorAll("*");
@@ -253,3 +255,32 @@ function addTooltipsForNA() {
 
 // Call the function on document load
 document.addEventListener("DOMContentLoaded", addTooltipsForNA);
+
+// Add the scrolling functionality after DOMContentLoaded
+function scrollToUnusedResources() {
+    const unusedResourcesSection = document.getElementById("unused-resources");
+    unusedResourcesSection.scrollIntoView({ behavior: "smooth" });
+}
+
+function setupClickListeners() {
+    const countCells = document.querySelectorAll('#resource-type-counts td:nth-child(2)');
+    countCells.forEach(cell => {
+        cell.style.cursor = 'pointer';  // Make the count cells look clickable
+        cell.addEventListener('click', function() {
+            // Get the resource type from the first column of the same row
+            const resourceType = this.previousElementSibling.textContent.trim();
+            
+            // Set the search input value to the resource type
+            const searchInput = document.getElementById('search-input');
+            searchInput.value = resourceType;
+            document.getElementById('clear-search').style.display = 'inline'; // Show the clear icon
+            // Trigger the table filter to show the filtered results
+            filterTable();
+
+            // Scroll to the Unused Resources section
+            scrollToUnusedResources();
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', setupClickListeners);
