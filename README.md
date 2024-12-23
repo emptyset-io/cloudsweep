@@ -57,8 +57,6 @@ Both the `organization_role` and `runner_role` must have appropriate permissions
         },
         {
             "Action": [
-                "ses:SendRawEmail",
-                "ses:SendEmail",
                 "ec2:DescribeRegions",
                 "organizations:ListPolicies",
                 "organizations:ListOrganizationalUnitsForParent",
