@@ -54,7 +54,7 @@ class EbsVolumeScanner(ResourceScannerRegistry):
                             "State": volume["State"],
                             "Size": volume["Size"],  # Size in GiB
                             "CreateTime": create_time,
-                            "Reason": f"Volume has been unattached for {age} day(s), exceeding the threshold of {DAYS_THRESHOLD} days",
+                            "Reason": f"Volume has been unattached for {age}, exceeding the threshold of {DAYS_THRESHOLD} days",
                             "Cost": {self.label: cost_details}
                         })
                         logger.debug(f"EBS volume[{volume_id}] cost: {cost_details}")
