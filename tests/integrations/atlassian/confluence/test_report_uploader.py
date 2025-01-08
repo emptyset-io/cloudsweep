@@ -146,7 +146,7 @@ def test_upload_attachment_failure(mock_confluence):
     # Set up the mock for Confluence API calls
     mock_confluence_instance = MagicMock()
     mock_confluence.return_value = mock_confluence_instance
-    mock_confluence_instance.attach_file.side_effect = Exception("Upload failed")
+    mock_confluence_instance.attach_file.side_effect = Exception("Error uploading attachment to page ID 456: Upload failed")
 
     # Initialize the uploader
     uploader = ConfluenceReportUploader(
