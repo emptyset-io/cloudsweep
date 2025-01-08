@@ -1,6 +1,7 @@
 import datetime
 from atlassian import Confluence
 from utils.logger import get_logger
+import pytz
 
 
 # Set up the logger
@@ -22,7 +23,8 @@ class ConfluenceReportUploader:
         self.confluence = Confluence(
             url=confluence_url,
             username=username,
-            password=api_token
+            password=api_token,
+            cloud=True,
         )
         self.date = datetime.datetime.now().strftime("%m/%d/%Y")
         self.parent_page_title = parent_page_title
@@ -72,7 +74,7 @@ class ConfluenceReportUploader:
                 return False
         except Exception as e:
             logger.error(f"Authentication failed: {str(e)}")
-            logger.debug("Stack trace: ", exc_info=True)
+            logger.info("Stack trace: ", exc_info=True)
             return False
 
     def _get_parent_page_id(self, space_key):
@@ -100,7 +102,7 @@ class ConfluenceReportUploader:
             raise Exception(f"Parent page '{self.parent_page_title}' not found in space {space_key}.")
         except Exception as e:
             logger.error(f"Error fetching parent page ID: {str(e)}")
-            logger.debug("Stack trace: ", exc_info=True)
+            logger.info("Stack trace: ", exc_info=True)
             raise
 
     def _get_or_create_page(self, space_key, page_title, account_id, parent_page_id):
@@ -178,49 +180,44 @@ class ConfluenceReportUploader:
         
         return new_page
 
-    def _upload_attachment(self, page_id, report_file_path, title=None, content_type=None, comment=None):
+    def _upload_attachment(self, page_id, report_file_path, title=None, content_type=None, comment=None, num_keep=7):
         """
-        Uploads an attachment (file) to the specified Confluence page.
-        
+        Uploads an attachment (file) to the specified Confluence page and cleans up old attachments,
+        keeping only the latest `num_keep` attachments.
+
         :param page_id: The ID of the page to upload the attachment to
         :param report_file_path: Path to the report file
         :param title: (Optional) Title for the attachment
         :param content_type: (Optional) Content type for the attachment (e.g., "application/pdf")
         :param comment: (Optional) Comment to add with the attachment
+        :param num_keep: The number of most recent attachments to retain
         """
         logger.info(f"Uploading attachment to page ID: {page_id} from file: {report_file_path}")
         
         try:
-            # Ensure the report_file_path is a string and not a file object
-            if isinstance(report_file_path, str):
-                # Use attach_file with optional parameters like title, content_type, and comment
-                response = self.confluence.attach_file(
-                    filename=report_file_path,  # Path to the file
-                    page_id=page_id,  # The ID of the page to attach to
-                    title=title,  # Optional: provide title for the attachment
-                    content_type=content_type,  # Optional: provide content type (e.g., "application/pdf")
-                    comment=comment  # Optional: provide a comment for the attachment
-                )
-            else:
-                raise ValueError("The report file path must be a string representing the file path.")
+            # Step 1: Clean up old attachments on the page, retaining only the most recent `num_keep`
+            logger.info("Cleaning up old attachments")
+            self.confluence.remove_page_attachment_keep_version(page_id, report_file_path, num_keep)
 
-            # Check if the response is in the first-time upload format (with 'results')
+            # Step 2: Upload the new attachment
+            response = self.confluence.attach_file(
+                filename=report_file_path,
+                page_id=page_id,
+                title=title,
+                content_type=content_type,
+                comment=comment
+            )
+
             if 'results' in response and response['results']:
-                attachment_info = response['results'][0]  # Get the first result
-                attachment_id = attachment_info.get('id')
-                attachment_title = attachment_info.get('title')
-            # Check if the response is in the replace format (with just 'id')
+                attachment_info = response['results'][0]
+                logger.info(f"Attachment uploaded successfully: {attachment_info}")
             elif 'id' in response:
-                attachment_id = response.get('id')
-                attachment_title = response.get('title')
+                logger.info(f"Attachment uploaded successfully with ID: {response['id']}")
             else:
-                logger.error("Unable to upload attachment: response format is invalid.")
+                logger.error("Unable to upload attachment: Invalid response format.")
                 raise Exception(f"Error uploading attachment to page ID {page_id}: Invalid response format.")
-
-            # Log successful upload
-            logger.info(f"Attachment uploaded successfully to page ID: {page_id} with attachment ID: {attachment_id}")
 
         except Exception as e:
             logger.error(f"Error uploading attachment to page ID {page_id}: {str(e)}")
-            logger.debug("Stack trace: ", exc_info=True)
-            raise Exception(f"Error uploading attachment to page ID {page_id}: {str(e)}")  # Ensure the message includes the page ID
+            logger.info("Stack trace: ", exc_info=True)
+            raise
