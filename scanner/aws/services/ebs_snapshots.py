@@ -55,7 +55,7 @@ class EbsSnapshotScanner(ResourceScannerRegistry):
                         "ResourceId": snapshot_id,
                         "Size": size_in_gb,
                         "CreateTime": create_time,
-                        "Reason": f"Snapshot has been unattached for {age} day(s), exceeding the threshold of {DAYS_THRESHOLD} days",
+                        "Reason": f"Snapshot has been unattached for {age}, exceeding the threshold of {DAYS_THRESHOLD} days",
                         "Cost": {self.label: cost_details},
                         "Tags": tags  # Include tags in the output
                     }
