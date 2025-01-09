@@ -162,6 +162,8 @@ class ConfluenceReportUploader:
 
             <p>By breaking costs down into granular time intervals, the report allows users to pinpoint spikes in spending, identify underutilized resources, and make data-driven decisions. The lifetime cost metric is particularly useful for understanding the total investment in long-standing resources.</p>
 
+            <p>In addition to regular data aggregation, a new version of the AWS Cost Report will be generated every <strong>Sunday at 1 AM PST</strong>. This updated report will provide the most recent insights into resource usage and cost trends, helping account owners stay on top of their expenses and take timely actions to optimize their cloud environment.</p>
+
             <h2>Expectations for Account Owners</h2>
 
             <p>Account owners are expected to use this report to take proactive steps in resource management. The report highlights resources that may no longer be necessary, are underutilized, or are improperly scaled, which can drive up costs unnecessarily.</p>
@@ -169,6 +171,7 @@ class ConfluenceReportUploader:
             <p>Owners are encouraged to review their resource inventory and start cleaning up any unused or nonessential items. This includes terminating idle instances, deleting unused volumes and/or snapshots, downsizing over-provisioned services, and consolidating workloads where feasible. Regularly acting on these insights will help control costs, reduce waste, and ensure adherence to best practices for cloud resource management.</p>
 
             <p>By leveraging the AWS Cost Report, account owners can take ownership of their spending, improve operational efficiency, and contribute to a more streamlined and cost-effective cloud environment.</p>
+
             """
                     
         # Add the attachments macro to the page content
