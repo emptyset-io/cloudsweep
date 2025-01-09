@@ -197,7 +197,17 @@ class ConfluenceReportUploader:
         try:
             # Step 1: Clean up old attachments on the page, retaining only the most recent `num_keep`
             logger.info("Cleaning up old attachments")
-            self.confluence.remove_page_attachment_keep_version(page_id, report_file_path, num_keep)
+            report_file = report_file_path.split('/')[1]
+            attachments = self.confluence.get_attachments_from_content(
+                page_id=page_id,
+                expand="version",
+                filename=report_file
+            ).get("results", [])
+            
+            if not attachments:
+                logger.warning(f"No existing attachments found for file: {report_file} on page ID: {page_id}")
+            else:
+                self.confluence.remove_page_attachment_keep_version(page_id, report_file, num_keep)
 
             # Step 2: Upload the new attachment
             response = self.confluence.attach_file(
@@ -210,9 +220,9 @@ class ConfluenceReportUploader:
 
             if 'results' in response and response['results']:
                 attachment_info = response['results'][0]
-                logger.info(f"Attachment uploaded successfully: {attachment_info}")
+                logger.debug(f"Attachment uploaded successfully: {attachment_info}")
             elif 'id' in response:
-                logger.info(f"Attachment uploaded successfully with ID: {response['id']}")
+                logger.debug(f"Attachment uploaded successfully with ID: {response['id']}")
             else:
                 logger.error("Unable to upload attachment: Invalid response format.")
                 raise Exception(f"Error uploading attachment to page ID {page_id}: Invalid response format.")
