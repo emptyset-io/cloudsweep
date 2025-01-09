@@ -155,8 +155,22 @@ class ConfluenceReportUploader:
         :return: The response from the Confluence API containing the new page's data
         """
         logger.info(f"Creating new page '{page_title}' under parent page ID {parent_page_id}...")
-        content = f"Report for account {account_id} on {self.date}"
-        
+        content = """
+            <h1>AWS Cost Report Overview</h1>
+
+            <p>The AWS Cost Report provides a comprehensive view of resource usage and associated costs, enabling account owners to monitor and manage expenses effectively. This report aggregates data across <strong>hourly</strong>, <strong>daily</strong>, <strong>weekly</strong>, <strong>monthly</strong>, and <strong>lifetime</strong> periods, offering insights into cost trends over time. Each resource's cost is calculated to reflect its actual usage, helping to identify high-cost items and optimize resource allocation.</p>
+
+            <p>By breaking costs down into granular time intervals, the report allows users to pinpoint spikes in spending, identify underutilized resources, and make data-driven decisions. The lifetime cost metric is particularly useful for understanding the total investment in long-standing resources.</p>
+
+            <h2>Expectations for Account Owners</h2>
+
+            <p>Account owners are expected to use this report to take proactive steps in resource management. The report highlights resources that may no longer be necessary, are underutilized, or are improperly scaled, which can drive up costs unnecessarily.</p>
+
+            <p>Owners are encouraged to review their resource inventory and start cleaning up any unused or nonessential items. This includes terminating idle instances, deleting unused volumes and/or snapshots, downsizing over-provisioned services, and consolidating workloads where feasible. Regularly acting on these insights will help control costs, reduce waste, and ensure adherence to best practices for cloud resource management.</p>
+
+            <p>By leveraging the AWS Cost Report, account owners can take ownership of their spending, improve operational efficiency, and contribute to a more streamlined and cost-effective cloud environment.</p>
+            """
+                    
         # Add the attachments macro to the page content
         attachment_macro = f"<ac:macro ac:name=\"attachments\" ac:schema-version=\"1\"></ac:macro>"
         page_body = f"{content}<br><br>{attachment_macro}"
