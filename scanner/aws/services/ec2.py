@@ -3,7 +3,7 @@ from dateutil import parser
 from utils.logger import get_logger
 from config.config import DAYS_THRESHOLD
 from scanner.resource_scanner_registry import ResourceScannerRegistry
-from scanner.aws.utils.scanner_helper import extract_tag_value, fetch_metric
+from scanner.aws.utils.scanner_helper import extract_tag_value, calculate_and_format_age_in_time_units
 from scanner.aws.cost_estimator import CostEstimator
 import numpy as np
 
@@ -49,8 +49,9 @@ class Ec2Scanner(ResourceScannerRegistry):
                         stopped_duration = self._calculate_stopped_duration(params)
 
                         if stopped_duration and stopped_duration >= DAYS_THRESHOLD:
-                            # Refactored to include days greater than threshold message
-                            reason = f"Stopped for {stopped_duration} days, greater than {DAYS_THRESHOLD} days"
+                            # Use the calculate_and_format_age_in_time_units for stopped instances
+                            age = calculate_and_format_age_in_time_units(current_time, launch_time)
+                            reason = f"Stopped for {stopped_duration} days, greater than {DAYS_THRESHOLD} days. {age}"
                             ebs_details = self._get_ebs_volumes(session, instance)
                             hours_running = 0  # No running hours for stopped instances
                             cost_data = self._calculate_combined_costs(ebs_details=ebs_details, hours_running=hours_since_launch)
@@ -78,6 +79,8 @@ class Ec2Scanner(ResourceScannerRegistry):
                         state_change_duration = self._calculate_state_change_duration(params)
 
                         if state_change_duration and state_change_duration >= DAYS_THRESHOLD:
+                            age = calculate_and_format_age_in_time_units(current_time, launch_time)
+                            reason = f"Non-running state for {state_change_duration} days. {age}"
                             ebs_details = self._get_ebs_volumes(session, instance)
                             hours_running = 0  # No running hours for non-running instances
                             cost_data = self._calculate_combined_costs(ebs_details=ebs_details, hours_running=hours_since_launch)
@@ -86,14 +89,14 @@ class Ec2Scanner(ResourceScannerRegistry):
                                 "instance_name": instance_name,
                                 "instance_class": instance_class,
                                 "tags": tags,
-                                "reasons": ["Non-running state"],
+                                "reasons": [reason],
                                 "session": session,
                                 "state_change_duration": state_change_duration,
                                 "ebs_details": ebs_details,
                                 "cost_data": cost_data
                             }
                             unused_instances.append(self._build_unused_instance_response(params))
-                            logger.info(f"EC2 instance {instance_id} ({instance_name}) is in a non-running state: {instance_state} for {state_change_duration} days")
+                            logger.info(f"EC2 instance {instance_id} ({instance_name}) is in a non-running state: {instance_state} for {state_change_duration} days. {age}")
                         continue
 
                     # Check if instance has been running long enough before checking for underutilization
@@ -169,7 +172,6 @@ class Ec2Scanner(ResourceScannerRegistry):
         except Exception as e:
             logger.warning(f"Could not parse timestamp from {state_transition_reason}: {e}")
             return None
-
 
     def _analyze_instance_usage(self, params):
         """Analyze EC2 instance usage for underutilization over the last DAYS_THRESHOLD days."""
@@ -261,64 +263,8 @@ class Ec2Scanner(ResourceScannerRegistry):
                 ebs_details.append({"VolumeId": volume_id, "VolumeType": volume_type, "SizeGB": volume_size, "HoursRunning": hours_running})
         return ebs_details
 
-    def _calculate_combined_costs(self, instance_class=None, hours_running=None, ebs_details=None):
-        """Calculate combined costs for an EC2 instance and its associated EBS volumes."""
-        # Initialize total costs
-        total_costs = {
-            "hourly": 0,
-            "daily": 0,
-            "monthly": 0,
-            "yearly": 0,
-            "lifetime": 0,
-        }
-        # Add EC2 instance costs if applicable
-        if instance_class and hours_running is not None:
-            ec2_cost_data = self.cost_estimator.calculate_cost(self.label, resource_size=instance_class, hours_running=hours_running)
-            for cost_type in total_costs:
-                total_costs[cost_type] += ec2_cost_data.get(cost_type, 0)
-
-        # Add EBS volume costs if provided
-        if ebs_details and hours_running is not None:
-            for ebs in ebs_details:
-                ebs_cost_data = self.cost_estimator.calculate_cost("EBS Volumes", resource_size=ebs["SizeGB"], hours_running=hours_running)
-                for cost_type in total_costs:
-                    total_costs[cost_type] += ebs_cost_data.get(cost_type, 0)
-
-        logger.debug(f"{self.label} Cost: {total_costs}")
-        return {self.label: total_costs}
-
-
-
-    def _build_unused_instance_response(self, params):
-        """Build the response for an unused or underutilized EC2 instance."""
-        instance = params["instance"]
-        instance_name = params["instance_name"]
-        instance_class = params["instance_class"]
-        reasons = params["reasons"]
-        tags = params["tags"]
-        hours_running = params.get("hours_running")
-        ebs_details = params.get("ebs_details")
-        cost_data = params.get("cost_data")
-
-        # Ensure 'reasons' is always a list, even if None or empty
-        if not isinstance(reasons, list):
-            reasons = []  # Default to an empty list if 'reasons' is not iterable
-
-        response = {
-            "ResourceId": instance["InstanceId"],
-            "ResourceName": instance_name,
-            "InstanceClass": instance_class,
-            "State": instance["State"]["Name"],
-            "Reason": ", ".join(reasons) if reasons else "No underutilization reasons",
-            "Tags": tags
-        }
-        if hours_running is not None:
-            response["HoursRunning"] = hours_running
-        if ebs_details:
-            response["EBSVolumes"] = ebs_details
-        if cost_data:
-            response["Cost"] = cost_data
-        # Include Launch Time
-        response["LaunchTime"] = instance.get("LaunchTime")
-        logger.debug(response)
-        return response
+    def _calculate_combined_costs(self, ebs_details, instance_class, hours_running):
+        """Calculate the combined cost of the EC2 instance and associated EBS volumes."""
+        instance_cost = self.cost_estimator.estimate_instance_cost(instance_class, hours_running)
+        ebs_cost = self.cost_estimator.estimate_ebs_cost(ebs_details)
+        return {"instance_cost": instance_cost, "ebs_cost": ebs_cost}
