@@ -155,8 +155,25 @@ class ConfluenceReportUploader:
         :return: The response from the Confluence API containing the new page's data
         """
         logger.info(f"Creating new page '{page_title}' under parent page ID {parent_page_id}...")
-        content = f"Report for account {account_id} on {self.date}"
-        
+        content = """
+            <h1>AWS Cost Report Overview</h1>
+
+            <p>The AWS Cost Report provides a comprehensive view of resource usage and associated costs, enabling account owners to monitor and manage expenses effectively. This report aggregates data across <strong>hourly</strong>, <strong>daily</strong>, <strong>weekly</strong>, <strong>monthly</strong>, and <strong>lifetime</strong> periods, offering insights into cost trends over time. Each resource's cost is calculated to reflect its actual usage, helping to identify high-cost items and optimize resource allocation.</p>
+
+            <p>By breaking costs down into granular time intervals, the report allows users to pinpoint spikes in spending, identify underutilized resources, and make data-driven decisions. The lifetime cost metric is particularly useful for understanding the total investment in long-standing resources.</p>
+
+            <p>In addition to regular data aggregation, a new version of the AWS Cost Report will be generated every <strong>Sunday at 1 AM PST</strong>. This updated report will provide the most recent insights into resource usage and cost trends, helping account owners stay on top of their expenses and take timely actions to optimize their cloud environment.</p>
+
+            <h2>Expectations for Account Owners</h2>
+
+            <p>Account owners are expected to use this report to take proactive steps in resource management. The report highlights resources that may no longer be necessary, are underutilized, or are improperly scaled, which can drive up costs unnecessarily.</p>
+
+            <p>Owners are encouraged to review their resource inventory and start cleaning up any unused or nonessential items. This includes terminating idle instances, deleting unused volumes and/or snapshots, downsizing over-provisioned services, and consolidating workloads where feasible. Regularly acting on these insights will help control costs, reduce waste, and ensure adherence to best practices for cloud resource management.</p>
+
+            <p>By leveraging the AWS Cost Report, account owners can take ownership of their spending, improve operational efficiency, and contribute to a more streamlined and cost-effective cloud environment.</p>
+
+            """
+                    
         # Add the attachments macro to the page content
         attachment_macro = f"<ac:macro ac:name=\"attachments\" ac:schema-version=\"1\"></ac:macro>"
         page_body = f"{content}<br><br>{attachment_macro}"
@@ -180,7 +197,7 @@ class ConfluenceReportUploader:
         
         return new_page
 
-    def _upload_attachment(self, page_id, report_file_path, title=None, content_type=None, comment=None, num_keep=7):
+    def _upload_attachment(self, page_id, report_file_path, title=None, content_type=None, comment=None, num_keep=3):
         """
         Uploads an attachment (file) to the specified Confluence page and cleans up old attachments,
         keeping only the latest `num_keep` attachments.
@@ -197,7 +214,17 @@ class ConfluenceReportUploader:
         try:
             # Step 1: Clean up old attachments on the page, retaining only the most recent `num_keep`
             logger.info("Cleaning up old attachments")
-            self.confluence.remove_page_attachment_keep_version(page_id, report_file_path, num_keep)
+            report_file = report_file_path.split('/')[1]
+            attachments = self.confluence.get_attachments_from_content(
+                page_id=page_id,
+                expand="version",
+                filename=report_file
+            ).get("results", [])
+            
+            if not attachments:
+                logger.warning(f"No existing attachments found for file: {report_file} on page ID: {page_id}")
+            else:
+                self.confluence.remove_page_attachment_keep_version(page_id, report_file, num_keep)
 
             # Step 2: Upload the new attachment
             response = self.confluence.attach_file(
@@ -210,9 +237,9 @@ class ConfluenceReportUploader:
 
             if 'results' in response and response['results']:
                 attachment_info = response['results'][0]
-                logger.info(f"Attachment uploaded successfully: {attachment_info}")
+                logger.debug(f"Attachment uploaded successfully: {attachment_info}")
             elif 'id' in response:
-                logger.info(f"Attachment uploaded successfully with ID: {response['id']}")
+                logger.debug(f"Attachment uploaded successfully with ID: {response['id']}")
             else:
                 logger.error("Unable to upload attachment: Invalid response format.")
                 raise Exception(f"Error uploading attachment to page ID {page_id}: Invalid response format.")
